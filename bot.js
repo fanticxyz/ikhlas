@@ -16,13 +16,6 @@ const {
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-const {
-  SCHOLARS, SCHOLAR_KEYS,
-  FATAWA, FATWA_TOPICS, FATWA_TOPIC_KEYS,
-  getFatawaByScholar, getFatawaByTopic,
-  getRandomFatwa, searchFatawa,
-} = require("./fatawa");
-
 // ─────────────────────────────────────────────────────
 //  COLLECTION REGISTRY  (all free, no API key needed)
 //  Source: cdn.jsdelivr.net/gh/fawazahmed0/hadith-api
@@ -303,92 +296,6 @@ function buildCollectionMenu() {
   );
 }
 
-function buildFatwaEmbed(fatwa) {
-  const scholar = SCHOLARS[fatwa.scholar];
-  const topic   = FATWA_TOPICS[fatwa.topic] || { label: fatwa.topic, emoji: "📜" };
-
-  return new EmbedBuilder()
-    .setColor(scholar.color)
-    .setAuthor({ name: `${scholar.emoji}  ${scholar.name}  (${scholar.dates})` })
-    .setTitle(`${topic.emoji}  ${fatwa.question}`)
-    .setDescription(fatwa.answer)
-    .addFields(
-      { name: "📚 Source",   value: `**${fatwa.source.book}**`, inline: true },
-      { name: "🔢 Vol/Page", value: `Vol. ${fatwa.source.volume}, p. ${fatwa.source.page}`, inline: true },
-      { name: "🏷️ Topic",   value: topic.label, inline: true }
-    )
-    .setFooter({ text: `${scholar.arabic} • رحمه الله` })
-    .setTimestamp();
-}
-
-function buildScholarListEmbed() {
-  return new EmbedBuilder()
-    .setColor(0x4E342E)
-    .setTitle("📜  Scholars in the Fatawa Database")
-    .setDescription(
-      SCHOLAR_KEYS.map(k => {
-        const s = SCHOLARS[k];
-        const count = getFatawaByScholar(k).length;
-        return `${s.emoji} **${s.name}** (${s.dates})\n${s.bio.substring(0, 100)}...\n*${count} fatawa in database*`;
-      }).join("\n\n")
-    )
-    .setFooter({ text: "Use /fatwa to browse • رحمهم الله أجمعين" });
-}
-
-function buildFatwaNavButtons(fatwaId, scholarFilter, topicFilter) {
-  const pool = FATAWA.filter(f =>
-    (!scholarFilter || f.scholar === scholarFilter) &&
-    (!topicFilter   || f.topic === topicFilter || f.tags.includes(topicFilter))
-  );
-  const idx  = pool.findIndex(f => f.id === fatwaId);
-  const prev = pool[idx - 1];
-  const next = pool[idx + 1];
-  const rand = pool[Math.floor(Math.random() * pool.length)];
-
-  const row = new ActionRowBuilder();
-  if (prev) row.addComponents(
-    new ButtonBuilder().setCustomId(`fatwa_nav_${prev.id}_${scholarFilter||""}_${topicFilter||""}`).setLabel("◀ Prev").setStyle(ButtonStyle.Secondary)
-  );
-  if (next) row.addComponents(
-    new ButtonBuilder().setCustomId(`fatwa_nav_${next.id}_${scholarFilter||""}_${topicFilter||""}`).setLabel("Next ▶").setStyle(ButtonStyle.Secondary)
-  );
-  if (rand) row.addComponents(
-    new ButtonBuilder().setCustomId(`fatwa_nav_${rand.id}_${scholarFilter||""}_${topicFilter||""}`).setLabel("🎲 Random").setStyle(ButtonStyle.Primary)
-  );
-  return row.components.length ? row : null;
-}
-
-function buildScholarSelectMenu() {
-  return new ActionRowBuilder().addComponents(
-    new StringSelectMenuBuilder()
-      .setCustomId("select_scholar")
-      .setPlaceholder("Filter by scholar...")
-      .addOptions([
-        { label: "All Scholars", value: "all", emoji: "📜" },
-        ...SCHOLAR_KEYS.map(k => ({
-          label: SCHOLARS[k].name,
-          description: SCHOLARS[k].dates,
-          value: k,
-          emoji: SCHOLARS[k].emoji,
-        }))
-      ])
-  );
-}
-
-function buildTopicSelectMenu() {
-  const options = FATWA_TOPIC_KEYS.slice(0, 25).map(k => ({
-    label: FATWA_TOPICS[k].label,
-    value: k,
-    emoji: FATWA_TOPICS[k].emoji,
-  }));
-  return new ActionRowBuilder().addComponents(
-    new StringSelectMenuBuilder()
-      .setCustomId("select_fatwa_topic")
-      .setPlaceholder("Filter by topic...")
-      .addOptions(options)
-  );
-}
-
 function buildErrorEmbed(msg) {
   return new EmbedBuilder()
     .setColor(0xB71C1C)
@@ -465,32 +372,6 @@ const commands = [
   new SlashCommandBuilder()
     .setName("explore")
     .setDescription("Open an interactive collection explorer with a dropdown menu"),
-
-  new SlashCommandBuilder()
-    .setName("fatwa")
-    .setDescription("Get a fatwa from Ibn Taymiyyah, Ibn al-Qayyim, Ibn Baz, or Ibn Uthaymeen")
-    .addStringOption(o =>
-      o.setName("scholar").setDescription("Filter by scholar")
-        .addChoices(
-          { name: "All Scholars", value: "all" },
-          ...SCHOLAR_KEYS.map(k => ({ name: SCHOLARS[k].name, value: k }))
-        )
-    )
-    .addStringOption(o =>
-      o.setName("topic").setDescription("Filter by topic")
-        .addChoices(...FATWA_TOPIC_KEYS.slice(0, 25).map(k => ({ name: FATWA_TOPICS[k].label, value: k })))
-    ),
-
-  new SlashCommandBuilder()
-    .setName("scholars")
-    .setDescription("List all scholars in the fatawa database with their backgrounds"),
-
-  new SlashCommandBuilder()
-    .setName("searchfatwa")
-    .setDescription("Search fatawa by keyword")
-    .addStringOption(o =>
-      o.setName("keyword").setDescription("Keyword to search for").setRequired(true)
-    ),
 
 ].map(c => c.toJSON());
 
@@ -637,41 +518,6 @@ client.on("interactionCreate", async interaction => {
       await interaction.editReply({ embeds: [buildCollectionListEmbed()] });
     }
 
-    else if (cmd === "fatwa") {
-      const scholarKey = interaction.options.getString("scholar") || "all";
-      const topic      = interaction.options.getString("topic") || null;
-      const filter = {};
-      if (scholarKey !== "all") filter.scholar = scholarKey;
-      if (topic) filter.topic = topic;
-      const fatwa = getRandomFatwa(filter);
-      if (!fatwa) {
-        return interaction.editReply({ embeds: [buildErrorEmbed("No fatawa found for that combination. Try different filters.")] });
-      }
-      const navRow = buildFatwaNavButtons(fatwa.id, filter.scholar || "", filter.topic || "");
-      const components = [buildScholarSelectMenu(), buildTopicSelectMenu()];
-      if (navRow) components.push(navRow);
-      await interaction.editReply({ embeds: [buildFatwaEmbed(fatwa)], components });
-    }
-
-    else if (cmd === "scholars") {
-      await interaction.editReply({ embeds: [buildScholarListEmbed()], components: [buildScholarSelectMenu()] });
-    }
-
-    else if (cmd === "searchfatwa") {
-      const keyword = interaction.options.getString("keyword");
-      const results = searchFatawa(keyword);
-      if (!results.length) {
-        return interaction.editReply({ embeds: [buildErrorEmbed(`No fatawa found for keyword: "${keyword}". Try a different word.`)] });
-      }
-      const fatwa = results[0];
-      const navRow = buildFatwaNavButtons(fatwa.id, "", "");
-      const components = [buildScholarSelectMenu(), buildTopicSelectMenu()];
-      if (navRow) components.push(navRow);
-      const embed = buildFatwaEmbed(fatwa);
-      embed.setFooter({ text: `Found ${results.length} result(s) for "${keyword}" • showing first result` });
-      await interaction.editReply({ embeds: [embed], components });
-    }
-
     else if (cmd === "explore") {
       const embed = new EmbedBuilder()
         .setColor(0x4E342E)
@@ -800,46 +646,6 @@ client.on("interactionCreate", async interaction => {
     } catch {
       await interaction.editReply({ embeds: [buildErrorEmbed("Could not load a random ayah.")] });
     }
-  }
-
-  // ── FATWA SELECT MENUS ────────────────────────────
-  else if (interaction.isStringSelectMenu() && interaction.customId === "select_scholar") {
-    await interaction.deferUpdate();
-    const scholarKey = interaction.values[0];
-    const filter = scholarKey === "all" ? {} : { scholar: scholarKey };
-    const fatwa = getRandomFatwa(filter);
-    if (!fatwa) return interaction.editReply({ embeds: [buildErrorEmbed("No fatawa found for that selection.")] });
-    const navRow = buildFatwaNavButtons(fatwa.id, filter.scholar || "", "");
-    const components = [buildScholarSelectMenu(), buildTopicSelectMenu()];
-    if (navRow) components.push(navRow);
-    await interaction.editReply({ embeds: [buildFatwaEmbed(fatwa)], components });
-  }
-
-  else if (interaction.isStringSelectMenu() && interaction.customId === "select_fatwa_topic") {
-    await interaction.deferUpdate();
-    const topic = interaction.values[0];
-    const fatwa = getRandomFatwa({ topic });
-    if (!fatwa) return interaction.editReply({ embeds: [buildErrorEmbed("No fatawa found for that topic.")] });
-    const navRow = buildFatwaNavButtons(fatwa.id, "", topic);
-    const components = [buildScholarSelectMenu(), buildTopicSelectMenu()];
-    if (navRow) components.push(navRow);
-    await interaction.editReply({ embeds: [buildFatwaEmbed(fatwa)], components });
-  }
-
-  // ── FATWA NAV BUTTONS ────────────────────────────
-  else if (interaction.isButton() && interaction.customId.startsWith("fatwa_nav_")) {
-    await interaction.deferUpdate();
-    const parts = interaction.customId.split("_");
-    // fatwa_nav_<id>_<scholar>_<topic>
-    const fatwaId      = parts[2];
-    const scholarFilter = parts[3] || "";
-    const topicFilter   = parts[4] || "";
-    const fatwa = FATAWA.find(f => f.id === fatwaId);
-    if (!fatwa) return interaction.editReply({ embeds: [buildErrorEmbed("Could not find that fatwa.")] });
-    const navRow = buildFatwaNavButtons(fatwaId, scholarFilter, topicFilter);
-    const components = [buildScholarSelectMenu(), buildTopicSelectMenu()];
-    if (navRow) components.push(navRow);
-    await interaction.editReply({ embeds: [buildFatwaEmbed(fatwa)], components });
   }
 });
 
