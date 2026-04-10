@@ -1,0 +1,20 @@
+{
+  "name": "islamic-knowledge-bot",
+  "version": "1.0.0",
+  "description": "A Discord bot sharing Hadiths, Scholar Quotes, and Quranic verses by topic",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js",
+    "dev": "nodemon bot.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.4.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
