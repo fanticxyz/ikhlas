@@ -559,6 +559,21 @@ client.on("interactionCreate", async interaction => {
         .setFooter({ text: "بسم الله الرحمن الرحيم • In the name of Allah" });
       await interaction.editReply({ embeds: [embed], components: [buildCollectionMenu()] });
     }
+
+    // ── MODULE COMMANDS (asmaallah, dua, tafsir) ─────
+    else {
+      let handled = false;
+      for (const mod of MODULES) {
+        if (mod.handlers && mod.handlers[cmd]) {
+          await mod.handlers[cmd](interaction);
+          handled = true;
+          break;
+        }
+      }
+      if (!handled) {
+        await interaction.editReply({ embeds: [buildErrorEmbed(`Unknown command: ${cmd}`)] });
+      }
+    }
   }
 
   // ── SELECT MENU ────────────────────────────────────
@@ -679,13 +694,8 @@ client.on("interactionCreate", async interaction => {
   }
 
 
-  // MODULE SLASH COMMANDS
-  else if (interaction.isChatInputCommand()) {
-    const cmd = interaction.commandName;
-    for (const mod of MODULES) {
-      if (mod.handlers && mod.handlers[cmd]) { await mod.handlers[cmd](interaction); return; }
-    }
-  }
+  // MODULE SLASH COMMANDS — handled inside isChatInputCommand above via fall-through
+  // (module commands are routed at the bottom of the isChatInputCommand block)
 
   // MODULE SELECT MENUS
   else if (interaction.isStringSelectMenu()) {
