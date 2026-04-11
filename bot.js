@@ -16,14 +16,6 @@ const {
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-// FEATURE MODULES — Prayer removed
-const asmaModule   = require("./asma");
-const duaModule    = require("./dua");
-const seerahModule = require("./seerah");
-const tafsirModule = require("./tafsir");
-const MODULES = [asmaModule, duaModule, seerahModule, tafsirModule];
-
-
 // ─────────────────────────────────────────────────────
 //  COLLECTION REGISTRY  (all free, no API key needed)
 //  Source: cdn.jsdelivr.net/gh/fawazahmed0/hadith-api
@@ -47,6 +39,8 @@ const QURAN_API = "https://api.alquran.cloud/v1";
 // ─────────────────────────────────────────────────────
 //  QURAN TRANSLATION REGISTRY
 //  All free via alquran.cloud — no key needed
+//  Fetch multiple editions in one request using:
+//  /ayah/2:255/editions/en.asad,en.pickthall,en.sahih
 // ─────────────────────────────────────────────────────
 const TRANSLATIONS = {
   "en.asad":        { name: "Muhammad Asad",              lang: "English",  flag: "🇬🇧" },
@@ -71,8 +65,12 @@ const TRANSLATIONS = {
 
 const TRANSLATION_KEYS = Object.keys(TRANSLATIONS);
 const DEFAULT_TRANSLATION = "en.sahih";
+
+// Collections where ALL hadiths are considered Sahih by default
+// (no per-hadith grading needed — the entire book is authenticated)
 const SAHIH_BY_DEFAULT = new Set(["bukhari", "muslim", "nawawi", "qudsi"]);
 
+// Grade display config
 const GRADE_CONFIG = {
   sahih:        { label: "Sahih — Authentic",          emoji: "🟢", color: 0x1B5E20 },
   hasan:        { label: "Hasan — Good",               emoji: "🟡", color: 0xF9A825 },
@@ -89,10 +87,13 @@ const GRADE_CONFIG = {
 function parseGrade(gradeStr) {
   if (!gradeStr) return null;
   const normalized = gradeStr.toLowerCase().replace(/\s+/g, " ").trim();
+  // Direct match
   if (GRADE_CONFIG[normalized]) return { raw: gradeStr, ...GRADE_CONFIG[normalized] };
+  // Partial match
   for (const [key, val] of Object.entries(GRADE_CONFIG)) {
     if (normalized.includes(key)) return { raw: gradeStr, ...val };
   }
+  // Unknown grade — still show it
   return { raw: gradeStr, label: gradeStr, emoji: "⚪", color: null };
 }
 
@@ -118,6 +119,7 @@ async function fetchRandomHadith(collectionKey) {
 }
 
 async function fetchAyah(surah, ayah, translationKey = DEFAULT_TRANSLATION) {
+  // Fetch English (Sahih Int) + Arabic + requested translation in one call
   const editions = [...new Set([translationKey, "quran-uthmani"])].join(",");
   const res = await fetch(`${QURAN_API}/ayah/${surah}:${ayah}/editions/${editions}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -142,6 +144,7 @@ function buildHadithEmbed(collectionKey, hadithData, number, includeArabic = fal
   const text   = hadith.text || hadithData?.text || "Text unavailable.";
   const section = hadithData?.metadata?.name || hadithData?.section?.title || null;
 
+  // Grade detection
   let grade = null;
   if (SAHIH_BY_DEFAULT.has(collectionKey)) {
     grade = { label: "Sahih — Authentic", emoji: "🟢", color: 0x1B5E20 };
@@ -181,13 +184,16 @@ function buildHadithEmbed(collectionKey, hadithData, number, includeArabic = fal
 }
 
 function buildAyahEmbed(ayahData, translationKey = DEFAULT_TRANSLATION) {
+  // Multi-edition response: ayahData.data is an array of edition objects
   const editions = ayahData?.data;
   if (!editions || !Array.isArray(editions)) {
+    // Fallback: single edition response
     const a = ayahData?.data;
     if (!a) return new EmbedBuilder().setColor(0x2E7D32).setDescription("Could not fetch ayah.");
     return new EmbedBuilder().setColor(0x2E7D32).setDescription(`*"${a.text}"*`);
   }
 
+  // Find translation and arabic editions
   const transEdition  = editions.find(e => e.edition?.identifier === translationKey) || editions[0];
   const arabicEdition = editions.find(e => e.edition?.identifier === "quran-uthmani");
 
@@ -220,6 +226,7 @@ function buildAyahEmbed(ayahData, translationKey = DEFAULT_TRANSLATION) {
 }
 
 function buildTranslationSelectMenu(currentKey = DEFAULT_TRANSLATION) {
+  // Discord limits select menus to 25 options
   const options = TRANSLATION_KEYS.slice(0, 25).map(k => ({
     label: `${TRANSLATIONS[k].flag} ${TRANSLATIONS[k].name}`,
     description: TRANSLATIONS[k].lang,
@@ -364,13 +371,9 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName("explore")
-    .setDescription("Open an interactive collection explorer with a dropdown menu")
+    .setDescription("Open an interactive collection explorer with a dropdown menu"),
 
 ].map(c => c.toJSON());
-
-for (const mod of MODULES) { 
-  if (mod.commands) commands.push(...mod.commands); 
-}
 
 // ─────────────────────────────────────────────────────
 //  BOT EVENTS
@@ -388,6 +391,7 @@ client.once("ready", async () => {
 
 client.on("interactionCreate", async interaction => {
 
+  // ── SLASH COMMANDS ─────────────────────────────────
   if (interaction.isChatInputCommand()) {
     await interaction.deferReply();
     const cmd = interaction.commandName;
@@ -444,6 +448,7 @@ client.on("interactionCreate", async interaction => {
       const transKey   = interaction.options.getString("translation") || DEFAULT_TRANSLATION;
       try {
         const data = await fetchAyah(surah, ayahNum, transKey);
+        // Get max ayahs in this surah for nav buttons
         const surahInfo = await fetch(`${QURAN_API}/surah/${surah}`).then(r => r.json());
         const maxAyah   = surahInfo?.data?.numberOfAyahs || 286;
         await interaction.editReply({
@@ -524,17 +529,9 @@ client.on("interactionCreate", async interaction => {
         .setFooter({ text: "بسم الله الرحمن الرحيم • In the name of Allah" });
       await interaction.editReply({ embeds: [embed], components: [buildCollectionMenu()] });
     }
-    
-    else {
-      for (const mod of MODULES) {
-        if (mod.handlers && mod.handlers[cmd]) { 
-          await mod.handlers[cmd](interaction); 
-          return; 
-        }
-      }
-    }
   }
 
+  // ── SELECT MENU ────────────────────────────────────
   else if (interaction.isStringSelectMenu() && interaction.customId === "select_collection") {
     await interaction.deferUpdate();
     const colKey = interaction.values[0];
@@ -549,6 +546,7 @@ client.on("interactionCreate", async interaction => {
     }
   }
 
+  // ── BUTTONS ────────────────────────────────────────
   else if (interaction.isButton()) {
     const parts    = interaction.customId.split("_");
     const action   = parts[0];
@@ -585,23 +583,68 @@ client.on("interactionCreate", async interaction => {
         await interaction.editReply({ embeds: [buildErrorEmbed(`Could not load Arabic text for #${num}.`)] });
       }
     }
-    
-    else {
-      for (const mod of MODULES) {
-        if (mod.buttonHandler) {
-          await mod.buttonHandler(interaction);
-          return;
-        }
-      }
+  }
+
+  // ── TRANSLATION SELECT MENU ───────────────────────
+  else if (interaction.isStringSelectMenu() && interaction.customId === "select_translation") {
+    await interaction.deferUpdate();
+    const transKey = interaction.values[0];
+    // Parse current ayah reference from existing embed footer/author
+    const currentEmbed = interaction.message.embeds[0];
+    const authorName   = currentEmbed?.author?.name || "";
+    // Author format: "📖  SurahName (Arabic)  •  Ayah X:Y"
+    const match = authorName.match(/Ayah\s+(\d+):(\d+)/);
+    const surahNum = match ? parseInt(match[1]) : 1;
+    const ayahNum  = match ? parseInt(match[2]) : 1;
+    try {
+      const data      = await fetchAyah(surahNum, ayahNum, transKey);
+      const surahInfo = await fetch(`${QURAN_API}/surah/${surahNum}`).then(r => r.json());
+      const maxAyah   = surahInfo?.data?.numberOfAyahs || 286;
+      await interaction.editReply({
+        embeds: [buildAyahEmbed(data, transKey)],
+        components: [buildTranslationSelectMenu(transKey), buildAyahNavButtons(surahNum, ayahNum, maxAyah, transKey)]
+      });
+    } catch {
+      await interaction.editReply({ embeds: [buildErrorEmbed("Could not switch translation.")] });
     }
   }
 
-  else if (interaction.isStringSelectMenu()) {
-    for (const mod of MODULES) {
-      if (mod.selectHandler) {
-        await mod.selectHandler(interaction);
-        return;
-      }
+  // ── AYAH NAV BUTTONS ──────────────────────────────
+  else if (interaction.isButton() && interaction.customId.startsWith("ayahnav_")) {
+    await interaction.deferUpdate();
+    const parts    = interaction.customId.split("_");
+    const surahNum = parseInt(parts[1]);
+    const ayahNum  = parseInt(parts[2]);
+    const transKey = parts[3] || DEFAULT_TRANSLATION;
+    try {
+      const data      = await fetchAyah(surahNum, ayahNum, transKey);
+      const surahInfo = await fetch(`${QURAN_API}/surah/${surahNum}`).then(r => r.json());
+      const maxAyah   = surahInfo?.data?.numberOfAyahs || 286;
+      await interaction.editReply({
+        embeds: [buildAyahEmbed(data, transKey)],
+        components: [buildTranslationSelectMenu(transKey), buildAyahNavButtons(surahNum, ayahNum, maxAyah, transKey)]
+      });
+    } catch {
+      await interaction.editReply({ embeds: [buildErrorEmbed("Could not load that ayah.")] });
+    }
+  }
+
+  else if (interaction.isButton() && interaction.customId.startsWith("ayahrandom_")) {
+    await interaction.deferUpdate();
+    const transKey = interaction.customId.split("_")[1] || DEFAULT_TRANSLATION;
+    try {
+      const data     = await fetchRandomAyah(transKey);
+      const editions = data?.data;
+      const first    = Array.isArray(editions) ? editions[0] : editions;
+      const surahNum = first?.surah?.number || 1;
+      const ayahNum  = first?.numberInSurah || 1;
+      const maxAyah  = first?.surah?.numberOfAyahs || 7;
+      await interaction.editReply({
+        embeds: [buildAyahEmbed(data, transKey)],
+        components: [buildTranslationSelectMenu(transKey), buildAyahNavButtons(surahNum, ayahNum, maxAyah, transKey)]
+      });
+    } catch {
+      await interaction.editReply({ embeds: [buildErrorEmbed("Could not load a random ayah.")] });
     }
   }
 });
