@@ -240,9 +240,6 @@ function buildAyahEmbed(data, translationKey = DEFAULT_TRANSLATION) {
     { name: "🗣️ Language",   value: trans.lang,                     inline: true }
   );
 
-  // Note: AlQuran Cloud edition fetch doesn't include transliteration in this path.
-  // If you need it later we can add a separate helper for en.transliteration.
-
   embed.setFooter({ text: "القرآن الكريم — The Noble Quran" }).setTimestamp();
   return embed;
 }
@@ -493,7 +490,7 @@ const commands = [
     .setName("asmaallah")
     .setDescription("Browse the 99 Names of Allah (Asma ul Husna)")
     .addIntegerOption(o =>
-      o.setName("number").setDescription("Name number 1–99, leave blank for random").setMinValue(1).setMaxValue(99)
+      o.setName("number").setDescription("Name number 1–99, leave blank to start from 1").setMinValue(1).setMaxValue(99)
     ),
 
   new SlashCommandBuilder()
@@ -660,19 +657,14 @@ client.on("interactionCreate", async interaction => {
     }
 
     else if (cmd === "asmaallah") {
-      const num = interaction.options.getInteger("number");
+      // FIX: default to 1 when no number is provided
+      const num = interaction.options.getInteger("number") || 1;
       try {
-        if (num) {
-          const resp  = await fetchAllAsma();
-          const names = Array.isArray(resp) ? resp : (resp.names || resp);
-          const name  = names.find(n => n.number === num) || names[num - 1];
-          if (!name) return interaction.editReply({ embeds: [buildErrorEmbed("Name not found.")] });
-          await interaction.editReply({ embeds: [buildAsmaEmbed(name)], components: [buildAsmaNavButtons(num)] });
-        } else {
-          const resp = await fetchRandomAsma();
-          const name = Array.isArray(resp) ? resp[0] : resp;
-          await interaction.editReply({ embeds: [buildAsmaEmbed(name)], components: [buildAsmaNavButtons(name.number)] });
-        }
+        const resp  = await fetchAllAsma();
+        const names = Array.isArray(resp) ? resp : (resp.names || resp);
+        const name  = names.find(n => n.number === num) || names[num - 1];
+        if (!name) return interaction.editReply({ embeds: [buildErrorEmbed("Name not found.")] });
+        await interaction.editReply({ embeds: [buildAsmaEmbed(name)], components: [buildAsmaNavButtons(num)] });
       } catch {
         await interaction.editReply({ embeds: [buildErrorEmbed("Could not load Asma ul Husna.")] });
       }
@@ -868,7 +860,6 @@ client.on("interactionCreate", async interaction => {
       const surah    = parseInt(parts[2]);
       const ayahNum  = parseInt(parts[3]);
       const maxAyah  = parseInt(parts[4]) || 300;
-      // FIX: reconstruct translation key from the remaining parts (handles underscores like sahih_international)
       const transKey = parts.slice(5).join("_") || DEFAULT_TRANSLATION;
       try {
         const data = await fetchAyah(surah, ayahNum, transKey);
