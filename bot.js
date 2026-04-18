@@ -3,7 +3,8 @@
  *   ISLAMIC KNOWLEDGE BOT
  *   Quran via AlQuran Cloud (api.alquran.cloud/v1)
  *   Hadith · Tafsir · Duas · Asma ul Husna · Hijri via UmmahAPI
- *   Extended Hadith via hadith-json (GitHub/AhmedBaset)
+ *   Extended Hadith via hadith-json (AhmedBaset)
+ *   Al-Silsila Sahiha via hadithapi.com
  *   Single file — no modules folder needed
  * ═══════════════════════════════════════════════════════════════
  */
@@ -21,13 +22,15 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 // ─────────────────────────────────────────────────────
 //  API BASES
 // ─────────────────────────────────────────────────────
-const API       = "https://ummahapi.com/api";
-const QURAN_API = "https://api.alquran.cloud/v1";
+const API            = "https://ummahapi.com/api";
+const QURAN_API      = "https://api.alquran.cloud/v1";
+const HADITHAPI_BASE = "https://hadithapi.com/api/hadiths";
 
 // ─────────────────────────────────────────────────────
 //  HADITH COLLECTIONS
-//  source: "ummah"  → UmmahAPI (original 7)
-//  source: "json"   → hadith-json GitHub dataset
+//  source: "ummah"         → UmmahAPI
+//  source: "json"          → hadith-json dataset
+//  source: "hadithapi_com" → hadithapi.com (needs key)
 // ═════════════════════════════════════════════════════
 const COLLECTIONS = {
   // ── UmmahAPI ──
@@ -39,7 +42,7 @@ const COLLECTIONS = {
   nasai:    { name: "Sunan an-Nasa'i",   arabic: "سنن النسائي",   color: 0x37474F, emoji: "📓", total: 5765,  source: "ummah" },
   malik:    { name: "Muwatta Malik",     arabic: "موطأ مالك",     color: 0x6D4C41, emoji: "📔", total: 1858,  source: "ummah" },
 
-  // ── Extended (hadith-json) ──
+  // ── Extended (hadith-json via jsDelivr) ──
   ahmad:    { name: "Musnad Ahmad",               arabic: "مسند أحمد",              color: 0x795548, emoji: "📚", total: 26363, source: "json", path: "the_9_books/ahmad.json" },
   darimi:   { name: "Sunan ad-Darimi",            arabic: "سنن الدارمي",            color: 0x5D4037, emoji: "📜", total: 3367,  source: "json", path: "the_9_books/darimi.json" },
   nawawi40: { name: "40 Hadith of Nawawi",        arabic: "الأربعون النووية",       color: 0xE65100, emoji: "📝", total: 42,    source: "json", path: "forties/nawawi40.json" },
@@ -50,11 +53,14 @@ const COLLECTIONS = {
   bulugh:   { name: "Bulugh al-Maram",            arabic: "بلوغ المرام",             color: 0x4527A0, emoji: "⚖️", total: 1500,  source: "json", path: "other_books/bulugh.json" },
   adab:     { name: "Al-Adab al-Mufrad",          arabic: "الأدب المفرد",            color: 0x1565C0, emoji: "🤝", total: 1300,  source: "json", path: "other_books/adab.json" },
   mishkat:  { name: "Mishkat al-Masabih",         arabic: "مشكاة المصابيح",          color: 0xC62828, emoji: "💡", total: 5900,  source: "json", path: "other_books/mishkat.json" },
+
+  // ── hadithapi.com ──
+  silsila:  { name: "Al-Silsila Sahiha",          arabic: "سلسلة الأحاديث الصحيحة", color: 0x00838F, emoji: "🔗", total: 900,   source: "hadithapi_com", slug: "al-silsila-sahiha" },
 };
 const COLLECTION_KEYS = Object.keys(COLLECTIONS);
 
 // ─────────────────────────────────────────────────────
-//  QURAN TRANSLATIONS  (AlQuran Cloud editions)
+//  QURAN TRANSLATIONS
 // ─────────────────────────────────────────────────────
 const TRANSLATIONS = {
   sahih_international: { name: "Saheeh International", flag: "🇬🇧", lang: "English", edition: "en.sahih" },
@@ -65,7 +71,7 @@ const TRANSLATION_KEYS = Object.keys(TRANSLATIONS);
 const DEFAULT_TRANSLATION = "sahih_international";
 
 // ─────────────────────────────────────────────────────
-//  TAFSIR EDITIONS  (UmmahAPI)
+//  TAFSIR EDITIONS
 // ─────────────────────────────────────────────────────
 const TAFSIR_EDITIONS = {
   ibn_kathir:    { name: "Tafsir Ibn Kathir (Abridged)", scholar: "Hafiz Ibn Kathir",                         lang: "English", flag: "🇬🇧" },
@@ -117,8 +123,8 @@ function stripHtml(html) {
   return html?.replace(/<[^>]+>/g, "") || "";
 }
 
-// ── Extended Hadith JSON Loader ──
-const HADITH_JSON_BASE = "https://raw.githubusercontent.com/AhmedBaset/hadith-json/v1.2.0/db/by_book";
+// ── Extended Hadith JSON Loader (jsDelivr) ──
+const HADITH_JSON_BASE = "https://cdn.jsdelivr.net/gh/AhmedBaset/hadith-json@1.2.0/db/by_book";
 const hadithJsonCache = new Map();
 const CACHE_TTL = 1000 * 60 * 60 * 2; // 2 hours
 
@@ -131,19 +137,78 @@ async function fetchHadithJsonCollection(key) {
   if (!col || col.source !== "json") throw new Error(`Not a JSON-backed collection: ${key}`);
 
   const url = `${HADITH_JSON_BASE}/${col.path}`;
+  console.log(`[hadith-json] Fetching ${url}`);
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status} — ${url}`);
   const data = await res.json();
-  if (!Array.isArray(data)) throw new Error("Invalid hadith JSON structure");
+  if (!Array.isArray(data)) throw new Error("Invalid hadith JSON structure (expected array)");
 
+  console.log(`[hadith-json] Loaded ${data.length} hadiths for ${key}`);
   hadithJsonCache.set(key, { data, ts: now });
   return data;
 }
 
+// ── hadithapi.com Helper ──
+const HADITHAPI_KEY = process.env.HADITHAPI_KEY || null;
+
+async function fetchHadithCom(collectionSlug, number) {
+  if (!HADITHAPI_KEY) throw new Error("HADITHAPI_KEY not configured in .env");
+  const url = new URL(HADITHAPI_BASE);
+  url.searchParams.set("apiKey", HADITHAPI_KEY);
+  url.searchParams.set("book", collectionSlug);
+  url.searchParams.set("hadithNumber", String(number));
+  url.searchParams.set("paginate", "1");
+
+  console.log(`[hadithapi.com] Fetching ${url.toString().replace(HADITHAPI_KEY, "***")}`);
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`HTTP ${res.status} — hadithapi.com`);
+  const json = await res.json();
+
+  // Try multiple possible response wrappers
+  const hadiths = json.hadiths?.data || json.data?.hadiths || json.hadiths || json.data || [];
+  const hadith = Array.isArray(hadiths) ? hadiths[0] : hadiths;
+  if (!hadith) throw new Error("Hadith not found on hadithapi.com (empty response)");
+
+  return normalizeHadithCom(hadith, collectionSlug, number);
+}
+
+async function fetchRandomHadithCom(collectionSlug) {
+  if (!HADITHAPI_KEY) throw new Error("HADITHAPI_KEY not configured in .env");
+  const col = Object.values(COLLECTIONS).find(c => c.slug === collectionSlug);
+  const total = col?.total || 900;
+  const rand = Math.floor(Math.random() * total) + 1;
+  return fetchHadithCom(collectionSlug, rand);
+}
+
+function normalizeHadithCom(raw, slug, number) {
+  const colEntry = Object.entries(COLLECTIONS).find(([, v]) => v.slug === slug);
+  const colKey = colEntry ? colEntry[0] : slug;
+  const col = COLLECTIONS[colKey] || { name: slug, color: 0x00838F, emoji: "📖" };
+
+  const isnad = raw.isnad || raw.chain || raw.narrators || raw.narrator || raw.header || raw.rawi || null;
+
+  return {
+    collection: colKey,
+    collection_name: col.name,
+    hadithnumber: raw.hadithNumber || raw.number || raw.id || number,
+    english: raw.hadithEnglish || raw.english || raw.text || "Translation unavailable.",
+    arabic: raw.hadithArabic || raw.arabic || null,
+    urdu: raw.hadithUrdu || raw.urdu || null,
+    grade: raw.status || raw.grade || null,
+    isnad: isnad,
+    book: raw.book || null,
+    chapter: raw.chapter || null,
+  };
+}
+
 function normalizeHadithJson(raw, collectionKey, number) {
   const col = COLLECTIONS[collectionKey];
-  const narrator = raw.english?.narrator || "";
+  const narrator = raw.english?.narrator || raw.narrator || "";
   const text = raw.english?.text || raw.english || "Translation unavailable.";
+
+  // For hadith-json, the narrator field is often the chain/isnad
+  const isnad = narrator || raw.isnad || raw.chain || raw.narrators || raw.header || null;
+
   return {
     collection: collectionKey,
     collection_name: col?.name || collectionKey,
@@ -151,6 +216,7 @@ function normalizeHadithJson(raw, collectionKey, number) {
     english: narrator ? `${narrator}\n\n${text}` : text,
     arabic: raw.arabic || null,
     grade: raw.grade || null,
+    isnad: isnad,
   };
 }
 
@@ -160,24 +226,34 @@ async function fetchHadith(collection, number) {
   if (!col) throw new Error(`Unknown collection: ${collection}`);
 
   if (col.source === "ummah") {
-    return apiFetch(`/hadith/${collection}/${number}`);
+    const data = await apiFetch(`/hadith/${collection}/${number}`);
+    data.isnad = data.isnad || data.chain || data.narrators || data.header || data.rawi || null;
+    return data;
   }
 
-  // JSON source — treat number as 1-based array index for reliable Prev/Next nav
+  if (col.source === "hadithapi_com") {
+    return fetchHadithCom(col.slug, number);
+  }
+
+  // JSON source
   const hadiths = await fetchHadithJsonCollection(collection);
   const hadith = hadiths[number - 1];
-  if (!hadith) throw new Error(`Hadith #${number} not found in ${col.name}`);
+  if (!hadith) throw new Error(`Hadith #${number} not found in ${col.name} (max ${hadiths.length})`);
   return normalizeHadithJson(hadith, collection, number);
 }
 
 async function fetchRandomHadith(collection) {
-  if (!collection) return apiFetch(`/hadith/random`); // any random from UmmahAPI
+  if (!collection) return apiFetch(`/hadith/random`);
 
   const col = COLLECTIONS[collection];
   if (!col) throw new Error(`Unknown collection: ${collection}`);
 
   if (col.source === "ummah") {
     return apiFetch(`/hadith/${collection}/random`);
+  }
+
+  if (col.source === "hadithapi_com") {
+    return fetchRandomHadithCom(col.slug);
   }
 
   const hadiths = await fetchHadithJsonCollection(collection);
@@ -291,6 +367,14 @@ function buildHadithEmbed(data, showArabic = false) {
     { name: "📖 Collection", value: col.name,                inline: true },
     { name: "🔢 Number",     value: `#${data.hadithnumber}`, inline: true }
   );
+
+  // Isnad (chain of narration) — show if available
+  if (data.isnad && String(data.isnad).trim().length > 0) {
+    let chainText = String(data.isnad).trim();
+    if (chainText.length > 900) chainText = chainText.substring(0, 900) + "…";
+    embed.addFields({ name: "🔗 Isnad", value: `\`\`\`${chainText}\`\`\``, inline: false });
+  }
+
   if (showArabic && data.arabic) {
     embed.addFields({ name: "🕌 Arabic", value: `\`\`\`${data.arabic.substring(0, 1000)}\`\`\`` });
   }
@@ -416,6 +500,10 @@ function buildCollectionMenu() {
 
 function buildHadithNavButtons(collection, num, showArabic = false) {
   const col  = COLLECTIONS[collection];
+  if (!col) {
+    console.error(`[nav] Missing collection: ${collection}`);
+    return new ActionRowBuilder();
+  }
   const prev = Math.max(1, num - 1);
   const next = Math.min(col.total, num + 1);
   const rand = Math.floor(Math.random() * col.total) + 1;
@@ -592,6 +680,7 @@ const commands = [
 // ─────────────────────────────────────────────────────
 client.once("ready", async () => {
   console.log(`✅ Bot ready: ${client.user.tag}`);
+  console.log(`📚 Registered ${COLLECTION_KEYS.length} hadith collections in slash commands`);
 
   const statusEnv  = process.env.BOT_STATUS || "WATCHING:📖 Quran | /ayah /hadith /dua";
   const [typeRaw, ...parts] = statusEnv.split(":");
@@ -606,9 +695,9 @@ client.once("ready", async () => {
   const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
   try {
     await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
-    console.log("✅ Slash commands registered globally");
+    console.log(`✅ Slash commands registered globally (${commands.length} commands)`);
   } catch (e) {
-    console.error("Command registration error:", e);
+    console.error("❌ Command registration error:", e);
   }
 });
 
@@ -628,6 +717,17 @@ client.on("interactionCreate", async interaction => {
       const colKey = interaction.options.getString("collection");
       const num    = interaction.options.getInteger("number");
       const col    = COLLECTIONS[colKey];
+
+      if (!col) {
+        return interaction.editReply({ embeds: [buildErrorEmbed(`Unknown collection: ${colKey}`)] });
+      }
+
+      if (col.source === "hadithapi_com" && !HADITHAPI_KEY) {
+        return interaction.editReply({
+          embeds: [buildErrorEmbed(`Al-Silsila Sahiha requires a hadithapi.com API key.\nAdd \`HADITHAPI_KEY\` to your .env file.`)]
+        });
+      }
+
       if (num > col.total) {
         return interaction.editReply({ embeds: [buildErrorEmbed(`${col.name} only has up to #${col.total}.`)] });
       }
@@ -637,8 +737,9 @@ client.on("interactionCreate", async interaction => {
           embeds: [buildHadithEmbed(data)],
           components: [buildHadithNavButtons(colKey, num), buildCollectionMenu()]
         });
-      } catch {
-        await interaction.editReply({ embeds: [buildErrorEmbed(`Could not load hadith #${num}.`)] });
+      } catch (err) {
+        console.error(`[hadith] Error loading ${colKey} #${num}:`, err);
+        await interaction.editReply({ embeds: [buildErrorEmbed(`Could not load hadith #${num} from ${col.name}.`)] });
       }
     }
 
@@ -652,7 +753,8 @@ client.on("interactionCreate", async interaction => {
           embeds: [buildHadithEmbed(data)],
           components: [buildHadithNavButtons(col, num), buildCollectionMenu()]
         });
-      } catch {
+      } catch (err) {
+        console.error("[random] Error:", err);
         await interaction.editReply({ embeds: [buildErrorEmbed("Could not fetch a random hadith.")] });
       }
     }
@@ -671,7 +773,8 @@ client.on("interactionCreate", async interaction => {
             buildAyahNavButtons(surah, ayahNum, maxAyah, transKey)
           ]
         });
-      } catch {
+      } catch (err) {
+        console.error(`[ayah] Error loading ${surah}:${ayahNum}:`, err);
         await interaction.editReply({ embeds: [buildErrorEmbed(`Could not load ${surah}:${ayahNum}.`)] });
       }
     }
@@ -689,7 +792,8 @@ client.on("interactionCreate", async interaction => {
             buildAyahNavButtons(s, a, maxAyah, transKey)
           ]
         });
-      } catch {
+      } catch (err) {
+        console.error("[randomayah] Error:", err);
         await interaction.editReply({ embeds: [buildErrorEmbed("Could not fetch a random ayah.")] });
       }
     }
@@ -704,7 +808,8 @@ client.on("interactionCreate", async interaction => {
           embeds: [buildTafsirEmbed(data, tafsirKey)],
           components: [buildTafsirSelectMenu(surah, ayahNum)]
         });
-      } catch {
+      } catch (err) {
+        console.error(`[tafsir] Error loading ${surah}:${ayahNum}:`, err);
         await interaction.editReply({ embeds: [buildErrorEmbed(`Could not load tafsir for ${surah}:${ayahNum}.`)] });
       }
     }
@@ -727,13 +832,13 @@ client.on("interactionCreate", async interaction => {
             components: [buildDuaCategoryMenu()]
           });
         }
-      } catch {
+      } catch (err) {
+        console.error("[dua] Error:", err);
         await interaction.editReply({ embeds: [buildErrorEmbed("Could not fetch a dua.")] });
       }
     }
 
     else if (cmd === "asmaallah") {
-      // FIX: default to 1 when no number is provided
       const num = interaction.options.getInteger("number") || 1;
       try {
         const resp  = await fetchAllAsma();
@@ -741,7 +846,8 @@ client.on("interactionCreate", async interaction => {
         const name  = names.find(n => n.number === num) || names[num - 1];
         if (!name) return interaction.editReply({ embeds: [buildErrorEmbed("Name not found.")] });
         await interaction.editReply({ embeds: [buildAsmaEmbed(name)], components: [buildAsmaNavButtons(num)] });
-      } catch {
+      } catch (err) {
+        console.error("[asmaallah] Error:", err);
         await interaction.editReply({ embeds: [buildErrorEmbed("Could not load Asma ul Husna.")] });
       }
     }
@@ -750,7 +856,8 @@ client.on("interactionCreate", async interaction => {
       try {
         const data = await fetchTodayHijri();
         await interaction.editReply({ embeds: [buildHijriEmbed(data)] });
-      } catch {
+      } catch (err) {
+        console.error("[hijri] Error:", err);
         await interaction.editReply({ embeds: [buildErrorEmbed("Could not fetch Hijri date.")] });
       }
     }
@@ -776,7 +883,8 @@ client.on("interactionCreate", async interaction => {
           : [hEmbed, aEmbed, dEmbed];
 
         await interaction.editReply({ embeds });
-      } catch {
+      } catch (err) {
+        console.error("[daily] Error:", err);
         await interaction.editReply({ embeds: [buildErrorEmbed("Could not load daily content.")] });
       }
     }
@@ -785,18 +893,20 @@ client.on("interactionCreate", async interaction => {
       const total = Object.values(COLLECTIONS).reduce((s, c) => s + c.total, 0);
       const ummahCols = COLLECTION_KEYS.filter(k => COLLECTIONS[k].source === "ummah");
       const jsonCols  = COLLECTION_KEYS.filter(k => COLLECTIONS[k].source === "json");
+      const comCols   = COLLECTION_KEYS.filter(k => COLLECTIONS[k].source === "hadithapi_com");
+
+      let desc = "";
+      if (ummahCols.length) desc += `**UmmahAPI (${ummahCols.length})**\n` + ummahCols.map(k => `${COLLECTIONS[k].emoji} **${COLLECTIONS[k].name}** (${COLLECTIONS[k].arabic}) — ${COLLECTIONS[k].total.toLocaleString()}`).join("\n") + "\n\n";
+      if (jsonCols.length) desc += `**Extended via hadith-json (${jsonCols.length})**\n` + jsonCols.map(k => `${COLLECTIONS[k].emoji} **${COLLECTIONS[k].name}** (${COLLECTIONS[k].arabic}) — ${COLLECTIONS[k].total.toLocaleString()}`).join("\n") + "\n\n";
+      if (comCols.length) desc += `**hadithapi.com (${comCols.length})**\n` + comCols.map(k => `${COLLECTIONS[k].emoji} **${COLLECTIONS[k].name}** (${COLLECTIONS[k].arabic}) — ${COLLECTIONS[k].total.toLocaleString()}`).join("\n") + "\n\n";
+
+      desc += `**Total: ${total.toLocaleString()} hadiths** across ${COLLECTION_KEYS.length} collections`;
 
       const embed = new EmbedBuilder()
         .setColor(0x5C4033)
         .setTitle("📚  Available Hadith Collections")
-        .setDescription(
-          `**UmmahAPI (${ummahCols.length})**\n` +
-          ummahCols.map(k => `${COLLECTIONS[k].emoji} **${COLLECTIONS[k].name}** (${COLLECTIONS[k].arabic}) — ${COLLECTIONS[k].total.toLocaleString()}`).join("\n") +
-          `\n\n**Extended via hadith-json (${jsonCols.length})**\n` +
-          jsonCols.map(k => `${COLLECTIONS[k].emoji} **${COLLECTIONS[k].name}** (${COLLECTIONS[k].arabic}) — ${COLLECTIONS[k].total.toLocaleString()}`).join("\n") +
-          `\n\n**Total: ${total.toLocaleString()} hadiths** across ${COLLECTION_KEYS.length} collections`
-        )
-        .setFooter({ text: "Powered by UmmahAPI & hadith-json" });
+        .setDescription(desc)
+        .setFooter({ text: "Powered by UmmahAPI, hadith-json & hadithapi.com" });
       await interaction.editReply({ embeds: [embed] });
     }
 
@@ -829,14 +939,27 @@ client.on("interactionCreate", async interaction => {
     if (cid === "select_collection") {
       await interaction.deferUpdate();
       const colKey = interaction.values[0];
+      const col = COLLECTIONS[colKey];
+
+      if (!col) {
+        return interaction.editReply({ embeds: [buildErrorEmbed(`Unknown collection: ${colKey}`)] });
+      }
+
+      if (col.source === "hadithapi_com" && !HADITHAPI_KEY) {
+        return interaction.editReply({
+          embeds: [buildErrorEmbed(`Al-Silsila Sahiha requires a hadithapi.com API key.\nAdd \`HADITHAPI_KEY\` to your .env file.`)]
+        });
+      }
+
       try {
         const data = await fetchHadith(colKey, 1);
         await interaction.editReply({
           embeds: [buildHadithEmbed(data)],
           components: [buildHadithNavButtons(colKey, 1), buildCollectionMenu()]
         });
-      } catch {
-        await interaction.editReply({ embeds: [buildErrorEmbed("Could not load that collection.")] });
+      } catch (err) {
+        console.error(`[select_collection] Error loading ${colKey} #1:`, err);
+        await interaction.editReply({ embeds: [buildErrorEmbed(`Could not load ${col.name}. ${err.message}`)] });
       }
     }
 
@@ -856,7 +979,8 @@ client.on("interactionCreate", async interaction => {
             buildAyahNavButtons(surah, ayahNum, maxAyah, transKey)
           ]
         });
-      } catch {
+      } catch (err) {
+        console.error("[select_translation] Error:", err);
         await interaction.editReply({ embeds: [buildErrorEmbed("Could not switch translation.")] });
       }
     }
@@ -872,7 +996,8 @@ client.on("interactionCreate", async interaction => {
           embeds: [buildTafsirEmbed(data, tafsirKey)],
           components: [buildTafsirSelectMenu(surah, ayahNum)]
         });
-      } catch {
+      } catch (err) {
+        console.error("[select_tafsir] Error:", err);
         await interaction.editReply({ embeds: [buildErrorEmbed(`Could not load tafsir for ${surah}:${ayahNum}.`)] });
       }
     }
@@ -888,7 +1013,8 @@ client.on("interactionCreate", async interaction => {
           embeds: [buildDuaEmbed(duas[0])],
           components: [buildDuaCategoryMenu(), buildDuaNavButtons(category, 0, duas.length)]
         });
-      } catch {
+      } catch (err) {
+        console.error("[select_dua_category] Error:", err);
         await interaction.editReply({ embeds: [buildErrorEmbed("Could not load that dua category.")] });
       }
     }
@@ -912,7 +1038,8 @@ client.on("interactionCreate", async interaction => {
           embeds: [buildHadithEmbed(data)],
           components: [buildHadithNavButtons(colKey, num), buildCollectionMenu()]
         });
-      } catch {
+      } catch (err) {
+        console.error(`[hadith_nav] Error loading ${colKey} #${num}:`, err);
         await interaction.editReply({ embeds: [buildErrorEmbed(`Could not load hadith #${num}.`)] });
       }
     }
@@ -929,7 +1056,8 @@ client.on("interactionCreate", async interaction => {
           embeds: [buildHadithEmbed(data, !hasArabic)],
           components: [buildHadithNavButtons(colKey, num, !hasArabic), buildCollectionMenu()]
         });
-      } catch {
+      } catch (err) {
+        console.error("[hadith_arabic] Error:", err);
         await interaction.editReply({ embeds: [buildErrorEmbed("Could not load Arabic text.")] });
       }
     }
@@ -950,7 +1078,8 @@ client.on("interactionCreate", async interaction => {
             buildAyahNavButtons(surah, ayahNum, maxAyah, transKey)
           ]
         });
-      } catch {
+      } catch (err) {
+        console.error("[ayah_nav] Error:", err);
         await interaction.editReply({ embeds: [buildErrorEmbed("Could not load that ayah.")] });
       }
     }
@@ -970,7 +1099,8 @@ client.on("interactionCreate", async interaction => {
             buildAyahNavButtons(s, a, maxAyah, transKey)
           ]
         });
-      } catch {
+      } catch (err) {
+        console.error("[ayah_rand] Error:", err);
         await interaction.editReply({ embeds: [buildErrorEmbed("Could not load a random ayah.")] });
       }
     }
@@ -1009,7 +1139,8 @@ client.on("interactionCreate", async interaction => {
           embeds: [buildDuaEmbed(duas[index])],
           components: [buildDuaCategoryMenu(), buildDuaNavButtons(category, index, duas.length)]
         });
-      } catch {
+      } catch (err) {
+        console.error("[dua_nav] Error:", err);
         await interaction.editReply({ embeds: [buildErrorEmbed("Could not load that dua.")] });
       }
     }
@@ -1023,7 +1154,8 @@ client.on("interactionCreate", async interaction => {
           embeds: [buildDuaEmbed(data)],
           components: [buildDuaCategoryMenu()]
         });
-      } catch {
+      } catch (err) {
+        console.error("[dua_rand] Error:", err);
         await interaction.editReply({ embeds: [buildErrorEmbed("Could not load a random dua.")] });
       }
     }
@@ -1041,7 +1173,8 @@ client.on("interactionCreate", async interaction => {
           embeds: [buildAsmaEmbed(name)],
           components: [buildAsmaNavButtons(num)]
         });
-      } catch {
+      } catch (err) {
+        console.error("[asma_nav] Error:", err);
         await interaction.editReply({ embeds: [buildErrorEmbed("Could not load that name.")] });
       }
     }
