@@ -65,19 +65,24 @@ const DEFAULT_TRANSLATION = "en.sahih";
 
 // ─────────────────────────────────────────────────────
 //  TAFSIR REGISTRY
-//  Source: alquran.cloud editions (all free, no key)
+//  Source: spa5k/tafsir_api via jsDelivr CDN (free, no key)
+//  URL format: {TAFSIR_API}/{slug}/{surah}/{ayah}.json
 // ─────────────────────────────────────────────────────
+const TAFSIR_API = "https://cdn.jsdelivr.net/gh/spa5k/tafsir_api@main/tafsir";
+
 const TAFSIR_EDITIONS = {
-  "en.jalalayn":    { name: "Tafsir al-Jalalayn",        scholar: "Al-Suyuti & Al-Mahalli",  lang: "English", flag: "🟢" },
-  "en.maududi":     { name: "Tafsir Maududi",            scholar: "Sayyid Abul Ala Maududi", lang: "English", flag: "🟢" },
-  "en.yusufali":    { name: "Tafsir Yusuf Ali (notes)",  scholar: "Yusuf Ali",               lang: "English", flag: "🟢" },
-  "ar.muyassar":    { name: "Al-Tafsir Al-Muyassar",     scholar: "Group of Scholars",       lang: "Arabic",  flag: "🟩" },
-  "ar.jalalayn":    { name: "Tafsir al-Jalalayn (Ar)",   scholar: "Al-Suyuti & Al-Mahalli",  lang: "Arabic",  flag: "🟩" },
-  "ar.waseet":      { name: "Al-Tafsir Al-Waseet",       scholar: "Islamic scholars",        lang: "Arabic",  flag: "🟩" },
-  "ar.kashaf":      { name: "Al-Kashaf",                 scholar: "Al-Zamakhshari",          lang: "Arabic",  flag: "🟩" },
-  "ar.qurtubi":     { name: "Tafsir al-Qurtubi",         scholar: "Imam al-Qurtubi",         lang: "Arabic",  flag: "🟩" },
-  "ar.tabari":      { name: "Tafsir al-Tabari",          scholar: "Imam al-Tabari",          lang: "Arabic",  flag: "🟩" },
-  "ar.ibnatiyya":   { name: "Tafsir Ibn Atiyya",         scholar: "Ibn Atiyya",              lang: "Arabic",  flag: "🟩" },
+  // ── English ──────────────────────────────────────────────────────────────────
+  "en-tafsir-ibn-kathir":        { name: "Tafsir Ibn Kathir",       scholar: "Hafiz Ibn Kathir",        lang: "English", flag: "🇬🇧" },
+  "en-al-jalalayn":              { name: "Tafsir al-Jalalayn",      scholar: "Al-Suyuti & Al-Mahalli",  lang: "English", flag: "🇬🇧" },
+  "en-tafsir-maarif-ul-quran":   { name: "Maarif ul Quran",         scholar: "Mufti Muhammad Shafi",    lang: "English", flag: "🇬🇧" },
+  "en-tafisr-al-tabari":         { name: "Tafsir al-Tabari",        scholar: "Imam al-Tabari",          lang: "English", flag: "🇬🇧" },
+  // ── Arabic ───────────────────────────────────────────────────────────────────
+  "ar-tafsir-ibn-kathir":        { name: "Tafsir Ibn Kathir (Ar)",  scholar: "Hafiz Ibn Kathir",        lang: "Arabic",  flag: "🇸🇦" },
+  "ar-tafsir-al-tabari":         { name: "Tafsir al-Tabari (Ar)",   scholar: "Imam al-Tabari",          lang: "Arabic",  flag: "🇸🇦" },
+  "ar-tafseer-al-saddi":         { name: "Tafseer al-Sa'di",        scholar: "Imam al-Sa'di",           lang: "Arabic",  flag: "🇸🇦" },
+  "ar-tafsir-al-baghawi":        { name: "Tafseer al-Baghawi",      scholar: "Imam al-Baghawi",         lang: "Arabic",  flag: "🇸🇦" },
+  "ar-tafsir-al-wasit":          { name: "Tafsir al-Wasit",         scholar: "Islamic Scholars",        lang: "Arabic",  flag: "🇸🇦" },
+  "ar-tafseer-tanwir-al-miqbas": { name: "Tanwir al-Miqbas",        scholar: "Attr. Ibn Abbas",         lang: "Arabic",  flag: "🇸🇦" },
 };
 
 // ─────────────────────────────────────────────────────
@@ -249,8 +254,9 @@ async function fetchRandomAyah(translationKey = DEFAULT_TRANSLATION) {
   return fetchAyah(surah, ayah, translationKey);
 }
 
-async function fetchTafsir(surah, ayah, tafsirEdition) {
-  const res = await fetch(`${QURAN_API}/ayah/${surah}:${ayah}/${tafsirEdition}`);
+async function fetchTafsir(surah, ayah, tafsirSlug) {
+  // spa5k tafsir_api: /tafsir/{slug}/{surah}/{ayah}.json
+  const res = await fetch(`${TAFSIR_API}/${tafsirSlug}/${surah}/${ayah}.json`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
@@ -338,25 +344,33 @@ function buildAyahEmbed(ayahData, translationKey = DEFAULT_TRANSLATION) {
   return embed;
 }
 
-function buildTafsirEmbed(surah, ayah, tafsirEdition, tafsirData) {
-  const info = TAFSIR_EDITIONS[tafsirEdition] || { name: tafsirEdition, scholar: "", flag: "📚" };
-  const text = tafsirData?.data?.text || "Tafsir text unavailable for this ayah.";
-  const surahName = tafsirData?.data?.surah?.englishName || `Surah ${surah}`;
+function buildTafsirEmbed(surah, ayah, tafsirSlug, tafsirData) {
+  const info = TAFSIR_EDITIONS[tafsirSlug] || { name: tafsirSlug, scholar: "", lang: "Unknown", flag: "📚" };
+
+  // spa5k API response: { text: "...", ayah: N, surah: N } or array
+  // Handle both single object and array
+  const entry = Array.isArray(tafsirData) ? tafsirData[0] : tafsirData;
+  let rawText = entry?.text || "Tafsir text unavailable for this ayah.";
+
+  // Strip HTML tags from the text (some tafsirs contain <p>, <b> etc.)
+  const text = rawText.replace(/<[^>]*>/g, " ").replace(/\s{2,}/g, " ").trim();
 
   // Truncate long tafsir to fit Discord's 4096 char embed description limit
-  const truncated = text.length > 3900 ? text.substring(0, 3900) + "\n\n*(Tafsir truncated — see full commentary in a Quran resource)*" : text;
+  const truncated = text.length > 3900
+    ? text.substring(0, 3900) + "\n\n*(Tafsir truncated — see full commentary in a Quran resource)*"
+    : text;
 
   return new EmbedBuilder()
     .setColor(0x4A148C)
-    .setAuthor({ name: `${info.flag}  ${info.name}  •  ${surahName} ${surah}:${ayah}` })
+    .setAuthor({ name: `${info.flag}  ${info.name}  •  Surah ${surah}:${ayah}` })
     .setTitle(`📚 Tafsir — ${info.scholar}`)
-    .setDescription(truncated)
+    .setDescription(truncated || "No text available for this ayah in this tafsir.")
     .addFields(
-      { name: "📖 Scholar",  value: info.scholar, inline: true },
-      { name: "🗣️ Language", value: info.lang,   inline: true },
+      { name: "📖 Scholar",  value: info.scholar,       inline: true },
+      { name: "🗣️ Language", value: info.lang,          inline: true },
       { name: "📍 Ayah",     value: `${surah}:${ayah}`, inline: true }
     )
-    .setFooter({ text: "Tafsir via alquran.cloud • تفسير القرآن الكريم" })
+    .setFooter({ text: "Tafsir via spa5k/tafsir_api • تفسير القرآن الكريم" })
     .setTimestamp();
 }
 
@@ -715,7 +729,7 @@ client.on("interactionCreate", async interaction => {
     else if (cmd === "tafsir") {
       const surah         = interaction.options.getInteger("surah");
       const ayahNum       = interaction.options.getInteger("ayah");
-      const tafsirEdition = interaction.options.getString("scholar") || "en.jalalayn";
+      const tafsirEdition = interaction.options.getString("scholar") || "en-tafsir-ibn-kathir";
       try {
         const data = await fetchTafsir(surah, ayahNum, tafsirEdition);
         await interaction.editReply({
