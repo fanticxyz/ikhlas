@@ -1,8 +1,8 @@
 /**
  * ═══════════════════════════════════════════════════════════════
  *   ISLAMIC KNOWLEDGE BOT
- *   Powered entirely by UmmahAPI (ummahapi.com)
- *   Quran · Hadith · Tafsir · Duas · Asma ul Husna · Hijri
+ *   Quran via AlQuran Cloud (api.alquran.cloud/v1)
+ *   Hadith · Tafsir · Duas · Asma ul Husna · Hijri via UmmahAPI
  *   Single file — no modules folder needed
  * ═══════════════════════════════════════════════════════════════
  */
@@ -18,12 +18,13 @@ const {
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 // ─────────────────────────────────────────────────────
-//  API BASE
+//  API BASES
 // ─────────────────────────────────────────────────────
-const API = "https://ummahapi.com/api";
+const API       = "https://ummahapi.com/api";
+const QURAN_API = "https://api.alquran.cloud/v1";
 
 // ─────────────────────────────────────────────────────
-//  HADITH COLLECTIONS  (from /api/hadith/collections)
+//  HADITH COLLECTIONS
 // ─────────────────────────────────────────────────────
 const COLLECTIONS = {
   bukhari:  { name: "Sahih al-Bukhari",  arabic: "صحيح البخاري",  color: 0x1B5E20, emoji: "📗", total: 7589 },
@@ -37,18 +38,18 @@ const COLLECTIONS = {
 const COLLECTION_KEYS = Object.keys(COLLECTIONS);
 
 // ─────────────────────────────────────────────────────
-//  QURAN TRANSLATIONS  (available in UmmahAPI responses)
+//  QURAN TRANSLATIONS  (AlQuran Cloud editions)
 // ─────────────────────────────────────────────────────
 const TRANSLATIONS = {
-  sahih_international: { name: "Saheeh International", flag: "🇬🇧", lang: "English" },
-  pickthall:           { name: "Marmaduke Pickthall",  flag: "🇬🇧", lang: "English" },
-  yusuf_ali:           { name: "Yusuf Ali",             flag: "🇬🇧", lang: "English" },
+  sahih_international: { name: "Saheeh International", flag: "🇬🇧", lang: "English", edition: "en.sahih" },
+  pickthall:           { name: "Marmaduke Pickthall",  flag: "🇬🇧", lang: "English", edition: "en.pickthall" },
+  yusuf_ali:           { name: "Yusuf Ali",             flag: "🇬🇧", lang: "English", edition: "en.yusufali" },
 };
 const TRANSLATION_KEYS = Object.keys(TRANSLATIONS);
 const DEFAULT_TRANSLATION = "sahih_international";
 
 // ─────────────────────────────────────────────────────
-//  TAFSIR EDITIONS  (from /api/tafsir)
+//  TAFSIR EDITIONS  (UmmahAPI)
 // ─────────────────────────────────────────────────────
 const TAFSIR_EDITIONS = {
   ibn_kathir:    { name: "Tafsir Ibn Kathir (Abridged)", scholar: "Hafiz Ibn Kathir",                         lang: "English", flag: "🇬🇧" },
@@ -58,7 +59,7 @@ const TAFSIR_EDITIONS = {
 };
 
 // ─────────────────────────────────────────────────────
-//  DUA CATEGORIES  (from /api/duas/categories)
+//  DUA CATEGORIES
 // ─────────────────────────────────────────────────────
 const DUA_CATEGORIES = {
   morning:          { name: "Morning Adhkar",        emoji: "🌅", count: 7  },
@@ -96,6 +97,11 @@ async function apiFetch(path) {
   return json.data;
 }
 
+function stripHtml(html) {
+  return html?.replace(/<[^>]+>/g, "") || "";
+}
+
+// ── Hadith ──
 async function fetchHadith(collection, number) {
   return apiFetch(`/hadith/${collection}/${number}`);
 }
@@ -103,27 +109,82 @@ async function fetchRandomHadith(collection) {
   if (collection) return apiFetch(`/hadith/${collection}/random`);
   return apiFetch(`/hadith/random`);
 }
-async function fetchAyah(surah, ayah) {
-  return apiFetch(`/quran/surah/${surah}/ayah/${ayah}`);
+
+// ── Quran (AlQuran Cloud) ──
+async function fetchAyah(surah, ayah, translationKey = DEFAULT_TRANSLATION) {
+  const transEdition = TRANSLATIONS[translationKey]?.edition || TRANSLATIONS[DEFAULT_TRANSLATION].edition;
+  const res = await fetch(`${QURAN_API}/ayah/${surah}:${ayah}/editions/quran-uthmani,${transEdition}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  if (json.code !== 200) throw new Error(`AlQuran Cloud error: ${json.status}`);
+
+  const arabicData = json.data.find(d => d.edition.identifier === "quran-uthmani");
+  const transData  = json.data.find(d => d.edition.identifier === transEdition);
+  if (!arabicData || !transData) throw new Error("Invalid Quran API response");
+
+  return {
+    surah: {
+      name_english: arabicData.surah.englishName,
+      name_arabic: arabicData.surah.name,
+      number: arabicData.surah.number,
+    },
+    verse: {
+      verse_key: `${surah}:${ayah}`,
+      arabic: arabicData.text,
+      text: stripHtml(transData.text),
+      surah_total_ayahs: arabicData.surah.numberOfAyahs,
+    }
+  };
 }
-async function fetchRandomAyah() {
-  return apiFetch(`/quran/random`);
+
+async function fetchRandomAyah(translationKey = DEFAULT_TRANSLATION) {
+  const transEdition = TRANSLATIONS[translationKey]?.edition || TRANSLATIONS[DEFAULT_TRANSLATION].edition;
+  const res = await fetch(`${QURAN_API}/ayah/random/editions/quran-uthmani,${transEdition}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  if (json.code !== 200) throw new Error(`AlQuran Cloud error: ${json.status}`);
+
+  const arabicData = json.data.find(d => d.edition.identifier === "quran-uthmani");
+  const transData  = json.data.find(d => d.edition.identifier === transEdition);
+  if (!arabicData || !transData) throw new Error("Invalid Quran API response");
+
+  return {
+    surah: {
+      name_english: arabicData.surah.englishName,
+      name_arabic: arabicData.surah.name,
+      number: arabicData.surah.number,
+    },
+    verse: {
+      verse_key: `${arabicData.surah.number}:${arabicData.numberInSurah}`,
+      arabic: arabicData.text,
+      text: stripHtml(transData.text),
+      surah_total_ayahs: arabicData.surah.numberOfAyahs,
+    }
+  };
 }
+
+// ── Tafsir (UmmahAPI) ──
 async function fetchTafsir(tafsirKey, surah, ayah) {
   return apiFetch(`/tafsir/${tafsirKey}/surah/${surah}/ayah/${ayah}`);
 }
+
+// ── Dua ──
 async function fetchRandomDua() {
   return apiFetch(`/duas/random`);
 }
 async function fetchDuasByCategory(category) {
   return apiFetch(`/duas/category/${category}`);
 }
+
+// ── Asma ──
 async function fetchAllAsma() {
   return apiFetch(`/asma-ul-husna`);
 }
 async function fetchRandomAsma() {
   return apiFetch(`/asma-ul-husna/random`);
 }
+
+// ── Hijri ──
 async function fetchTodayHijri() {
   return apiFetch(`/today-hijri`);
 }
@@ -164,7 +225,7 @@ function buildAyahEmbed(data, translationKey = DEFAULT_TRANSLATION) {
   const surah  = data.surah;
   const verse  = data.verse;
   const trans  = TRANSLATIONS[translationKey] || TRANSLATIONS[DEFAULT_TRANSLATION];
-  const text   = verse.translations?.[translationKey] || verse.translations?.sahih_international || "Translation unavailable.";
+  const text   = verse.text || "Translation unavailable.";
 
   const embed = new EmbedBuilder()
     .setColor(0x1B5E20)
@@ -179,9 +240,8 @@ function buildAyahEmbed(data, translationKey = DEFAULT_TRANSLATION) {
     { name: "🗣️ Language",   value: trans.lang,                     inline: true }
   );
 
-  if (verse.transliteration) {
-    embed.addFields({ name: "🔤 Transliteration", value: `*${verse.transliteration}*` });
-  }
+  // Note: AlQuran Cloud edition fetch doesn't include transliteration in this path.
+  // If you need it later we can add a separate helper for en.transliteration.
 
   embed.setFooter({ text: "القرآن الكريم — The Noble Quran" }).setTimestamp();
   return embed;
@@ -529,7 +589,7 @@ client.on("interactionCreate", async interaction => {
       const ayahNum  = interaction.options.getInteger("ayah");
       const transKey = interaction.options.getString("translation") || DEFAULT_TRANSLATION;
       try {
-        const data    = await fetchAyah(surah, ayahNum);
+        const data    = await fetchAyah(surah, ayahNum, transKey);
         const maxAyah = data.verse?.surah_total_ayahs || 300;
         await interaction.editReply({
           embeds: [buildAyahEmbed(data, transKey)],
@@ -546,7 +606,7 @@ client.on("interactionCreate", async interaction => {
     else if (cmd === "randomayah") {
       const transKey = interaction.options.getString("translation") || DEFAULT_TRANSLATION;
       try {
-        const data    = await fetchRandomAyah();
+        const data    = await fetchRandomAyah(transKey);
         const [s, a]  = (data.verse?.verse_key || "1:1").split(":").map(Number);
         const maxAyah = data.verse?.surah_total_ayahs || 300;
         await interaction.editReply({
@@ -631,7 +691,7 @@ client.on("interactionCreate", async interaction => {
       try {
         const [hadithData, ayahData, duaData, hijriData] = await Promise.all([
           fetchRandomHadith(null),
-          fetchRandomAyah(),
+          fetchRandomAyah(DEFAULT_TRANSLATION),
           fetchRandomDua(),
           fetchTodayHijri().catch(() => null),
         ]);
@@ -710,15 +770,13 @@ client.on("interactionCreate", async interaction => {
 
     else if (cid.startsWith("select_translation_")) {
       await interaction.deferUpdate();
-      // customId: select_translation_{surah}_{ayah}_{maxAyah}
       const segments = cid.split("_");
-      // "select", "translation", surah, ayah, maxAyah
       const surah    = parseInt(segments[2]);
       const ayahNum  = parseInt(segments[3]);
       const maxAyah  = parseInt(segments[4]) || 300;
       const transKey = interaction.values[0];
       try {
-        const data = await fetchAyah(surah, ayahNum);
+        const data = await fetchAyah(surah, ayahNum, transKey);
         await interaction.editReply({
           embeds: [buildAyahEmbed(data, transKey)],
           components: [
@@ -807,13 +865,13 @@ client.on("interactionCreate", async interaction => {
     // Ayah prev / next
     else if (id.startsWith("ayah_prev_") || id.startsWith("ayah_next_")) {
       await interaction.deferUpdate();
-      // ayah_{action}_{surah}_{ayah}_{maxAyah}_{transKey}
       const surah    = parseInt(parts[2]);
       const ayahNum  = parseInt(parts[3]);
       const maxAyah  = parseInt(parts[4]) || 300;
-      const transKey = parts[5] || DEFAULT_TRANSLATION;
+      // FIX: reconstruct translation key from the remaining parts (handles underscores like sahih_international)
+      const transKey = parts.slice(5).join("_") || DEFAULT_TRANSLATION;
       try {
-        const data = await fetchAyah(surah, ayahNum);
+        const data = await fetchAyah(surah, ayahNum, transKey);
         await interaction.editReply({
           embeds: [buildAyahEmbed(data, transKey)],
           components: [
@@ -829,9 +887,9 @@ client.on("interactionCreate", async interaction => {
     // Random ayah
     else if (id.startsWith("ayah_rand_")) {
       await interaction.deferUpdate();
-      const transKey = parts[2] || DEFAULT_TRANSLATION;
+      const transKey = parts.slice(2).join("_") || DEFAULT_TRANSLATION;
       try {
-        const data    = await fetchRandomAyah();
+        const data    = await fetchRandomAyah(transKey);
         const [s, a]  = (data.verse?.verse_key || "1:1").split(":").map(Number);
         const maxAyah = data.verse?.surah_total_ayahs || 300;
         await interaction.editReply({
