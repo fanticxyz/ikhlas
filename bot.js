@@ -2,8 +2,9 @@
  * ═══════════════════════════════════════════════════════════════
  *   ISLAMIC KNOWLEDGE BOT
  *   Hadith via hadith-json (github.com/AhmedBaset/hadith-json)
+ *   Grades via hadith-api (github.com/fawazahmed0/hadith-api)
  *   Quran via AlQuran Cloud (api.alquran.cloud/v1)
- *   Hadith · Tafsir · Duas · Asma ul Husna · Hijri via UmmahAPI
+ *   Tafsir · Duas · Asma ul Husna · Hijri via UmmahAPI
  *   Single file — no modules folder needed
  * ═══════════════════════════════════════════════════════════════
  */
@@ -24,25 +25,26 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 const API       = "https://ummahapi.com/api";
 const QURAN_API = "https://api.alquran.cloud/v1";
 const HADITH_JSON_BASE = "https://raw.githubusercontent.com/AhmedBaset/hadith-json/v1.2.0/db/by_book";
+const GRADE_API_BASE   = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions";
 
 // ─────────────────────────────────────────────────────
 //  HADITH COLLECTIONS  (17 books from hadith-json)
 // ─────────────────────────────────────────────────────
 const COLLECTIONS = {
   // The 9 Books
-  bukhari:           { name: "Sahih al-Bukhari",               arabic: "صحيح البخاري",           color: 0x1B5E20, emoji: "📗", path: "the_9_books/bukhari.json" },
-  muslim:            { name: "Sahih Muslim",                   arabic: "صحيح مسلم",              color: 0x0D47A1, emoji: "📘", path: "the_9_books/muslim.json" },
-  abudawud:          { name: "Sunan Abi Dawud",                arabic: "سنن أبي داود",           color: 0x4A148C, emoji: "📙", path: "the_9_books/abudawud.json" },
-  tirmidhi:          { name: "Jami` at-Tirmidhi",              arabic: "جامع الترمذي",           color: 0x880E4F, emoji: "📕", path: "the_9_books/tirmidhi.json" },
-  nasai:             { name: "Sunan an-Nasa'i",                arabic: "سنن النسائي",            color: 0x37474F, emoji: "📓", path: "the_9_books/nasai.json" },
-  ibnmajah:          { name: "Sunan Ibn Majah",                arabic: "سنن ابن ماجه",           color: 0x004D40, emoji: "📒", path: "the_9_books/ibnmajah.json" },
-  malik:             { name: "Muwatta Malik",                  arabic: "موطأ مالك",              color: 0x6D4C41, emoji: "📔", path: "the_9_books/malik.json" },
-  ahmed:             { name: "Musnad Ahmad",                   arabic: "مسند أحمد",              color: 0x263238, emoji: "📚", path: "the_9_books/ahmed.json" },
-  darimi:            { name: "Sunan ad-Darimi",                arabic: "سنن الدارمي",            color: 0x5D4037, emoji: "📜", path: "the_9_books/darimi.json" },
+  bukhari:           { name: "Sahih al-Bukhari",               arabic: "صحيح البخاري",           color: 0x1B5E20, emoji: "📗", path: "the_9_books/bukhari.json", gradeEdition: "eng-bukhari", alwaysSahih: true },
+  muslim:            { name: "Sahih Muslim",                   arabic: "صحيح مسلم",              color: 0x0D47A1, emoji: "📘", path: "the_9_books/muslim.json", gradeEdition: "eng-muslim", alwaysSahih: true },
+  abudawud:          { name: "Sunan Abi Dawud",                arabic: "سنن أبي داود",           color: 0x4A148C, emoji: "📙", path: "the_9_books/abudawud.json", gradeEdition: "eng-abudawud" },
+  tirmidhi:          { name: "Jami` at-Tirmidhi",              arabic: "جامع الترمذي",           color: 0x880E4F, emoji: "📕", path: "the_9_books/tirmidhi.json", gradeEdition: "eng-tirmidhi" },
+  nasai:             { name: "Sunan an-Nasa'i",                arabic: "سنن النسائي",            color: 0x37474F, emoji: "📓", path: "the_9_books/nasai.json", gradeEdition: "eng-nasai" },
+  ibnmajah:          { name: "Sunan Ibn Majah",                arabic: "سنن ابن ماجه",           color: 0x004D40, emoji: "📒", path: "the_9_books/ibnmajah.json", gradeEdition: "eng-ibnmajah" },
+  malik:             { name: "Muwatta Malik",                  arabic: "موطأ مالك",              color: 0x6D4C41, emoji: "📔", path: "the_9_books/malik.json", gradeEdition: "eng-malik" },
+  ahmed:             { name: "Musnad Ahmad",                   arabic: "مسند أحمد",              color: 0x263238, emoji: "📚", path: "the_9_books/ahmed.json", gradeEdition: "eng-ahmed" },
+  darimi:            { name: "Sunan ad-Darimi",                arabic: "سنن الدارمي",            color: 0x5D4037, emoji: "📜", path: "the_9_books/darimi.json", gradeEdition: "eng-darimi" },
 
   // The Forties
-  nawawi40:          { name: "The Forty Hadith of al-Nawawi",  arabic: "الأربعون النووية",       color: 0x1A237E, emoji: "📝", path: "forties/nawawi40.json" },
-  qudsi40:           { name: "The Forty Hadith Qudsi",         arabic: "الأربعون القدسية",       color: 0x4A148C, emoji: "✨", path: "forties/qudsi40.json" },
+  nawawi40:          { name: "The Forty Hadith of al-Nawawi",  arabic: "الأربعون النووية",       color: 0x1A237E, emoji: "📝", path: "forties/nawawi40.json", alwaysSahih: true },
+  qudsi40:           { name: "The Forty Hadith Qudsi",         arabic: "الأربعون القدسية",       color: 0x4A148C, emoji: "✨", path: "forties/qudsi40.json", alwaysSahih: true },
   shahwaliullah40:   { name: "The Forty Hadith of Shah Waliullah", arabic: "أربعون الشاه ولي الله", color: 0x3E2723, emoji: "🕌", path: "forties/shahwaliullah40.json" },
 
   // Other Books
@@ -54,8 +56,9 @@ const COLLECTIONS = {
 };
 const COLLECTION_KEYS = Object.keys(COLLECTIONS);
 
-// In-memory cache for loaded hadith books
+// In-memory caches
 const hadithCache = new Map();
+const gradeCache  = new Map();
 
 // ─────────────────────────────────────────────────────
 //  QURAN TRANSLATIONS  (AlQuran Cloud editions)
@@ -150,12 +153,14 @@ async function fetchHadith(collection, number) {
     throw new Error(`${COLLECTIONS[collection].name} has ${book.hadiths.length} hadiths.`);
   }
   const h = book.hadiths[idx];
+  const grade = await fetchGrade(collection, h.idInBook || number);
   return {
     collection,
     hadithnumber: h.idInBook || number,
     english: h.english.text,
     narrator: h.english.narrator,
     arabic: h.arabic,
+    grade,
   };
 }
 
@@ -164,16 +169,62 @@ async function fetchRandomHadith(collection) {
     const book = await loadCollection(collection);
     const idx = Math.floor(Math.random() * book.hadiths.length);
     const h = book.hadiths[idx];
+    const grade = await fetchGrade(collection, h.idInBook || (idx + 1));
     return {
       collection,
       hadithnumber: h.idInBook || (idx + 1),
       english: h.english.text,
       narrator: h.english.narrator,
       arabic: h.arabic,
+      grade,
     };
   }
   const key = COLLECTION_KEYS[Math.floor(Math.random() * COLLECTION_KEYS.length)];
   return fetchRandomHadith(key);
+}
+
+// ── Grades (fawazahmed0/hadith-api via jsDelivr) ──
+async function fetchGrade(collectionKey, hadithNumber) {
+  const col = COLLECTIONS[collectionKey];
+  if (!col) return null;
+
+  // Auto-Sahih for Bukhari, Muslim, and Nawawi's 40
+  if (col.alwaysSahih) return "Sahih";
+
+  if (!col.gradeEdition) return null;
+
+  const cacheKey = `${collectionKey}:${hadithNumber}`;
+  if (gradeCache.has(cacheKey)) return gradeCache.get(cacheKey);
+
+  try {
+    const url = `${GRADE_API_BASE}/${col.gradeEdition}/${hadithNumber}.json`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    const hadith = data.hadiths?.[0];
+    if (!hadith || !hadith.grades || !hadith.grades.length) return null;
+
+    // Pick the first grade, or prefer Zubair Ali Zai / Albani / Arnaut if present
+    const preferred = hadith.grades.find(g => /Zubair|Albani|Arnaut/i.test(g.name));
+    const grade = preferred ? preferred.grade : hadith.grades[0].grade;
+
+    gradeCache.set(cacheKey, grade);
+    return grade;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeGrade(grade) {
+  if (!grade) return null;
+  const g = grade.toLowerCase();
+  if (g.includes("sahih") && !g.includes("daif") && !g.includes("hasan")) return "Sahih";
+  if (g.includes("hasan") && g.includes("sahih")) return "Hasan Sahih";
+  if (g.includes("hasan")) return "Hasan";
+  if (g.includes("daif") || g.includes("weak")) return "Daif";
+  if (g.includes("fabricated") || g.includes("mawdu")) return "Fabricated";
+  return grade;
 }
 
 // ── Quran (AlQuran Cloud) ──
@@ -262,8 +313,18 @@ async function fetchTodayHijri() {
 function buildHadithEmbed(data, showArabic = false) {
   const col = COLLECTIONS[data.collection] || { name: data.collection, color: 0x1A237E, emoji: "📖" };
 
+  const normalized = normalizeGrade(data.grade);
+  const gradeMap = {
+    Sahih: { label: "Sahih — Authentic", emoji: "🟢", color: 0x1B5E20 },
+    "Hasan Sahih": { label: "Hasan Sahih — Good/Authentic", emoji: "🟢", color: 0x1B5E20 },
+    Hasan: { label: "Hasan — Good", emoji: "🟡", color: 0xF9A825 },
+    Daif:  { label: "Da'if — Weak", emoji: "🔴", color: 0xB71C1C },
+    Fabricated: { label: "Fabricated", emoji: "⛔", color: 0x212121 },
+  };
+  const g = normalized ? (gradeMap[normalized] || { label: normalized, emoji: "⚪", color: null }) : null;
+
   const embed = new EmbedBuilder()
-    .setColor(col.color)
+    .setColor(g?.color || col.color)
     .setAuthor({ name: `${col.emoji}  ${col.name}  •  Hadith #${data.hadithnumber}` })
     .setDescription(`*"${data.english}"*`)
     .setFooter({ text: "لا علم إلا ما علَّم الله — No knowledge except what Allah has taught" })
@@ -273,6 +334,9 @@ function buildHadithEmbed(data, showArabic = false) {
     embed.addFields({ name: "🎙️ Narrator", value: data.narrator, inline: false });
   }
 
+  if (g) {
+    embed.addFields({ name: "📊 Grade", value: `${g.emoji} **${g.label}**`, inline: true });
+  }
   embed.addFields(
     { name: "📖 Collection", value: col.name,                inline: true },
     { name: "🔢 Number",     value: `#${data.hadithnumber}`, inline: true }
@@ -778,7 +842,7 @@ client.on("interactionCreate", async interaction => {
             ).join("\n") +
             `\n\n**Total: ${total.toLocaleString()} hadiths** across ${COLLECTION_KEYS.length} collections`
           )
-          .setFooter({ text: "Powered by hadith-json • github.com/AhmedBaset/hadith-json" });
+          .setFooter({ text: "Hadith text: hadith-json • Grades: fawazahmed0/hadith-api" });
         await interaction.editReply({ embeds: [embed] });
       } catch (e) {
         await interaction.editReply({ embeds: [buildErrorEmbed("Could not load collection data.")] });
