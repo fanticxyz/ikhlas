@@ -1,10 +1,8 @@
 /**
  * ═══════════════════════════════════════════════════════════════
  *   ISLAMIC KNOWLEDGE BOT
- *   Hadith via hadith-json (github.com/AhmedBaset/hadith-json)
- *   Grades via hadith-api (github.com/fawazahmed0/hadith-api)
  *   Quran via AlQuran Cloud (api.alquran.cloud/v1)
- *   Tafsir · Duas · Asma ul Husna · Hijri via UmmahAPI
+ *   Hadith · Tafsir · Duas · Asma ul Husna · Hijri via UmmahAPI
  *   Single file — no modules folder needed
  * ═══════════════════════════════════════════════════════════════
  */
@@ -24,41 +22,20 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 // ─────────────────────────────────────────────────────
 const API       = "https://ummahapi.com/api";
 const QURAN_API = "https://api.alquran.cloud/v1";
-const HADITH_JSON_BASE = "https://raw.githubusercontent.com/AhmedBaset/hadith-json/v1.2.0/db/by_book";
-const GRADE_API_BASE   = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions";
 
 // ─────────────────────────────────────────────────────
-//  HADITH COLLECTIONS  (17 books from hadith-json)
+//  HADITH COLLECTIONS
 // ─────────────────────────────────────────────────────
 const COLLECTIONS = {
-  // The 9 Books
-  bukhari:           { name: "Sahih al-Bukhari",               arabic: "صحيح البخاري",           color: 0x1B5E20, emoji: "📗", path: "the_9_books/bukhari.json", gradeEdition: "eng-bukhari", alwaysSahih: true },
-  muslim:            { name: "Sahih Muslim",                   arabic: "صحيح مسلم",              color: 0x0D47A1, emoji: "📘", path: "the_9_books/muslim.json", gradeEdition: "eng-muslim", alwaysSahih: true },
-  abudawud:          { name: "Sunan Abi Dawud",                arabic: "سنن أبي داود",           color: 0x4A148C, emoji: "📙", path: "the_9_books/abudawud.json", gradeEdition: "eng-abudawud" },
-  tirmidhi:          { name: "Jami` at-Tirmidhi",              arabic: "جامع الترمذي",           color: 0x880E4F, emoji: "📕", path: "the_9_books/tirmidhi.json", gradeEdition: "eng-tirmidhi" },
-  nasai:             { name: "Sunan an-Nasa'i",                arabic: "سنن النسائي",            color: 0x37474F, emoji: "📓", path: "the_9_books/nasai.json", gradeEdition: "eng-nasai" },
-  ibnmajah:          { name: "Sunan Ibn Majah",                arabic: "سنن ابن ماجه",           color: 0x004D40, emoji: "📒", path: "the_9_books/ibnmajah.json", gradeEdition: "eng-ibnmajah" },
-  malik:             { name: "Muwatta Malik",                  arabic: "موطأ مالك",              color: 0x6D4C41, emoji: "📔", path: "the_9_books/malik.json", gradeEdition: "eng-malik" },
-  ahmed:             { name: "Musnad Ahmad",                   arabic: "مسند أحمد",              color: 0x263238, emoji: "📚", path: "the_9_books/ahmed.json", gradeEdition: "eng-ahmed" },
-  darimi:            { name: "Sunan ad-Darimi",                arabic: "سنن الدارمي",            color: 0x5D4037, emoji: "📜", path: "the_9_books/darimi.json", gradeEdition: "eng-darimi" },
-
-  // The Forties
-  nawawi40:          { name: "The Forty Hadith of al-Nawawi",  arabic: "الأربعون النووية",       color: 0x1A237E, emoji: "📝", path: "forties/nawawi40.json", alwaysSahih: true },
-  qudsi40:           { name: "The Forty Hadith Qudsi",         arabic: "الأربعون القدسية",       color: 0x4A148C, emoji: "✨", path: "forties/qudsi40.json", alwaysSahih: true },
-  shahwaliullah40:   { name: "The Forty Hadith of Shah Waliullah", arabic: "أربعون الشاه ولي الله", color: 0x3E2723, emoji: "🕌", path: "forties/shahwaliullah40.json" },
-
-  // Other Books
-  riyad_assalihin:   { name: "Riyad as-Salihin",               arabic: "رياض الصالحين",          color: 0x2E7D32, emoji: "🌿", path: "other_books/riyad_assalihin.json" },
-  shamail_muhammadiyah: { name: "Shamail al-Muhammadiyah",    arabic: "الشمائل المحمدية",       color: 0xE65100, emoji: "🕊️", path: "other_books/shamail_muhammadiyah.json" },
-  bulugh_almaram:    { name: "Bulugh al-Maram",                arabic: "بلوغ المرام",            color: 0x006064, emoji: "⚖️", path: "other_books/bulugh_almaram.json" },
-  aladab_almufrad:   { name: "Al-Adab Al-Mufrad",              arabic: "الأدب المفرد",           color: 0xC62828, emoji: "🤝", path: "other_books/aladab_almufrad.json" },
-  mishkat_almasabih: { name: "Mishkat al-Masabih",             arabic: "مشكاة المصابيح",         color: 0xF9A825, emoji: "🏮", path: "other_books/mishkat_almasabih.json" },
+  bukhari:  { name: "Sahih al-Bukhari",  arabic: "صحيح البخاري",  color: 0x1B5E20, emoji: "📗", total: 7589 },
+  muslim:   { name: "Sahih Muslim",      arabic: "صحيح مسلم",     color: 0x0D47A1, emoji: "📘", total: 7563 },
+  abudawud: { name: "Sunan Abu Dawud",   arabic: "سنن أبي داود",  color: 0x4A148C, emoji: "📙", total: 5274 },
+  tirmidhi: { name: "Jami at-Tirmidhi",  arabic: "جامع الترمذي",  color: 0x880E4F, emoji: "📕", total: 3998 },
+  ibnmajah: { name: "Sunan Ibn Majah",   arabic: "سنن ابن ماجه",  color: 0x004D40, emoji: "📒", total: 4343 },
+  nasai:    { name: "Sunan an-Nasa'i",   arabic: "سنن النسائي",   color: 0x37474F, emoji: "📓", total: 5765 },
+  malik:    { name: "Muwatta Malik",     arabic: "موطأ مالك",     color: 0x6D4C41, emoji: "📔", total: 1858 },
 };
 const COLLECTION_KEYS = Object.keys(COLLECTIONS);
-
-// In-memory caches
-const hadithCache = new Map();
-const gradeCache  = new Map();
 
 // ─────────────────────────────────────────────────────
 //  QURAN TRANSLATIONS  (AlQuran Cloud editions)
@@ -124,107 +101,13 @@ function stripHtml(html) {
   return html?.replace(/<[^>]+>/g, "") || "";
 }
 
-// ── Hadith (hadith-json) ──
-async function loadCollection(key) {
-  if (hadithCache.has(key)) return hadithCache.get(key);
-  const col = COLLECTIONS[key];
-  if (!col) throw new Error(`Unknown collection: ${key}`);
-
-  const url = `${HADITH_JSON_BASE}/${col.path}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status} — ${url}`);
-
-  const data = await res.json();
-  const bookData = {
-    hadiths: data.hadiths || [],
-    metadata: data.metadata || {},
-    chapters: data.chapters || [],
-  };
-
-  col.total = bookData.hadiths.length;
-  hadithCache.set(key, bookData);
-  return bookData;
-}
-
+// ── Hadith ──
 async function fetchHadith(collection, number) {
-  const book = await loadCollection(collection);
-  const idx = number - 1;
-  if (idx < 0 || idx >= book.hadiths.length) {
-    throw new Error(`${COLLECTIONS[collection].name} has ${book.hadiths.length} hadiths.`);
-  }
-  const h = book.hadiths[idx];
-  const grade = await fetchGrade(collection, h.idInBook || number);
-  return {
-    collection,
-    hadithnumber: h.idInBook || number,
-    english: h.english.text,
-    narrator: h.english.narrator,
-    arabic: h.arabic,
-    grade,
-  };
+  return apiFetch(`/hadith/${collection}/${number}`);
 }
-
 async function fetchRandomHadith(collection) {
-  if (collection) {
-    const book = await loadCollection(collection);
-    const idx = Math.floor(Math.random() * book.hadiths.length);
-    const h = book.hadiths[idx];
-    const grade = await fetchGrade(collection, h.idInBook || (idx + 1));
-    return {
-      collection,
-      hadithnumber: h.idInBook || (idx + 1),
-      english: h.english.text,
-      narrator: h.english.narrator,
-      arabic: h.arabic,
-      grade,
-    };
-  }
-  const key = COLLECTION_KEYS[Math.floor(Math.random() * COLLECTION_KEYS.length)];
-  return fetchRandomHadith(key);
-}
-
-// ── Grades (fawazahmed0/hadith-api via jsDelivr) ──
-async function fetchGrade(collectionKey, hadithNumber) {
-  const col = COLLECTIONS[collectionKey];
-  if (!col) return null;
-
-  // Auto-Sahih for Bukhari, Muslim, and Nawawi's 40
-  if (col.alwaysSahih) return "Sahih";
-
-  if (!col.gradeEdition) return null;
-
-  const cacheKey = `${collectionKey}:${hadithNumber}`;
-  if (gradeCache.has(cacheKey)) return gradeCache.get(cacheKey);
-
-  try {
-    const url = `${GRADE_API_BASE}/${col.gradeEdition}/${hadithNumber}.json`;
-    const res = await fetch(url);
-    if (!res.ok) return null;
-
-    const data = await res.json();
-    const hadith = data.hadiths?.[0];
-    if (!hadith || !hadith.grades || !hadith.grades.length) return null;
-
-    // Pick the first grade, or prefer Zubair Ali Zai / Albani / Arnaut if present
-    const preferred = hadith.grades.find(g => /Zubair|Albani|Arnaut/i.test(g.name));
-    const grade = preferred ? preferred.grade : hadith.grades[0].grade;
-
-    gradeCache.set(cacheKey, grade);
-    return grade;
-  } catch {
-    return null;
-  }
-}
-
-function normalizeGrade(grade) {
-  if (!grade) return null;
-  const g = grade.toLowerCase();
-  if (g.includes("sahih") && !g.includes("daif") && !g.includes("hasan")) return "Sahih";
-  if (g.includes("hasan") && g.includes("sahih")) return "Hasan Sahih";
-  if (g.includes("hasan")) return "Hasan";
-  if (g.includes("daif") || g.includes("weak")) return "Daif";
-  if (g.includes("fabricated") || g.includes("mawdu")) return "Fabricated";
-  return grade;
+  if (collection) return apiFetch(`/hadith/${collection}/random`);
+  return apiFetch(`/hadith/random`);
 }
 
 // ── Quran (AlQuran Cloud) ──
@@ -311,17 +194,14 @@ async function fetchTodayHijri() {
 // ─────────────────────────────────────────────────────
 
 function buildHadithEmbed(data, showArabic = false) {
-  const col = COLLECTIONS[data.collection] || { name: data.collection, color: 0x1A237E, emoji: "📖" };
-
-  const normalized = normalizeGrade(data.grade);
+  const col = COLLECTIONS[data.collection] || { name: data.collection_name, color: 0x1A237E, emoji: "📖" };
+  const grade = data.grade;
   const gradeMap = {
     Sahih: { label: "Sahih — Authentic", emoji: "🟢", color: 0x1B5E20 },
-    "Hasan Sahih": { label: "Hasan Sahih — Good/Authentic", emoji: "🟢", color: 0x1B5E20 },
-    Hasan: { label: "Hasan — Good", emoji: "🟡", color: 0xF9A825 },
-    Daif:  { label: "Da'if — Weak", emoji: "🔴", color: 0xB71C1C },
-    Fabricated: { label: "Fabricated", emoji: "⛔", color: 0x212121 },
+    Hasan: { label: "Hasan — Good",      emoji: "🟡", color: 0xF9A825 },
+    Daif:  { label: "Da'if — Weak",      emoji: "🔴", color: 0xB71C1C },
   };
-  const g = normalized ? (gradeMap[normalized] || { label: normalized, emoji: "⚪", color: null }) : null;
+  const g = grade ? (gradeMap[grade] || { label: grade, emoji: "⚪", color: null }) : null;
 
   const embed = new EmbedBuilder()
     .setColor(g?.color || col.color)
@@ -330,18 +210,11 @@ function buildHadithEmbed(data, showArabic = false) {
     .setFooter({ text: "لا علم إلا ما علَّم الله — No knowledge except what Allah has taught" })
     .setTimestamp();
 
-  if (data.narrator) {
-    embed.addFields({ name: "🎙️ Narrator", value: data.narrator, inline: false });
-  }
-
-  if (g) {
-    embed.addFields({ name: "📊 Grade", value: `${g.emoji} **${g.label}**`, inline: true });
-  }
+  if (g) embed.addFields({ name: "📊 Grade", value: `${g.emoji} **${g.label}**`, inline: true });
   embed.addFields(
     { name: "📖 Collection", value: col.name,                inline: true },
     { name: "🔢 Number",     value: `#${data.hadithnumber}`, inline: true }
   );
-
   if (showArabic && data.arabic) {
     embed.addFields({ name: "🕌 Arabic", value: `\`\`\`${data.arabic.substring(0, 1000)}\`\`\`` });
   }
@@ -458,20 +331,21 @@ function buildCollectionMenu() {
       .setPlaceholder("Switch collection...")
       .addOptions(COLLECTION_KEYS.map(k => ({
         label: COLLECTIONS[k].name,
-        description: `${(COLLECTIONS[k].total || 0).toLocaleString()} hadiths`,
+        description: `${COLLECTIONS[k].total.toLocaleString()} hadiths`,
         value: k,
         emoji: COLLECTIONS[k].emoji,
       })))
   );
 }
 
-function buildHadithNavButtons(collection, num, total, showArabic = false) {
+function buildHadithNavButtons(collection, num, showArabic = false) {
+  const col  = COLLECTIONS[collection];
   const prev = Math.max(1, num - 1);
-  const next = Math.min(total, num + 1);
-  const rand = Math.floor(Math.random() * total) + 1;
+  const next = Math.min(col.total, num + 1);
+  const rand = Math.floor(Math.random() * col.total) + 1;
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId(`hadith_prev_${collection}_${prev}`).setLabel("◀ Prev").setStyle(ButtonStyle.Secondary).setDisabled(num <= 1),
-    new ButtonBuilder().setCustomId(`hadith_next_${collection}_${next}`).setLabel("Next ▶").setStyle(ButtonStyle.Secondary).setDisabled(num >= total),
+    new ButtonBuilder().setCustomId(`hadith_next_${collection}_${next}`).setLabel("Next ▶").setStyle(ButtonStyle.Secondary).setDisabled(num >= col.total),
     new ButtonBuilder().setCustomId(`hadith_rand_${collection}_${rand}`).setLabel("🎲 Random").setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId(`hadith_arabic_${collection}_${num}`)
@@ -677,18 +551,18 @@ client.on("interactionCreate", async interaction => {
     if (cmd === "hadith") {
       const colKey = interaction.options.getString("collection");
       const num    = interaction.options.getInteger("number");
+      const col    = COLLECTIONS[colKey];
+      if (num > col.total) {
+        return interaction.editReply({ embeds: [buildErrorEmbed(`${col.name} only has up to #${col.total}.`)] });
+      }
       try {
-        const book = await loadCollection(colKey);
-        if (num > book.hadiths.length) {
-          return interaction.editReply({ embeds: [buildErrorEmbed(`${COLLECTIONS[colKey].name} has ${book.hadiths.length} hadiths.`)] });
-        }
         const data = await fetchHadith(colKey, num);
         await interaction.editReply({
           embeds: [buildHadithEmbed(data)],
-          components: [buildHadithNavButtons(colKey, num, book.hadiths.length), buildCollectionMenu()]
+          components: [buildHadithNavButtons(colKey, num), buildCollectionMenu()]
         });
-      } catch (e) {
-        await interaction.editReply({ embeds: [buildErrorEmbed(e.message || `Could not load hadith #${num}.`)] });
+      } catch {
+        await interaction.editReply({ embeds: [buildErrorEmbed(`Could not load hadith #${num}.`)] });
       }
     }
 
@@ -696,12 +570,13 @@ client.on("interactionCreate", async interaction => {
       const colKey = interaction.options.getString("collection") || null;
       try {
         const data = await fetchRandomHadith(colKey);
-        const book = await loadCollection(data.collection);
+        const col  = data.collection || colKey || "bukhari";
+        const num  = data.hadithnumber || 1;
         await interaction.editReply({
           embeds: [buildHadithEmbed(data)],
-          components: [buildHadithNavButtons(data.collection, data.hadithnumber, book.hadiths.length), buildCollectionMenu()]
+          components: [buildHadithNavButtons(col, num), buildCollectionMenu()]
         });
-      } catch (e) {
+      } catch {
         await interaction.editReply({ embeds: [buildErrorEmbed("Could not fetch a random hadith.")] });
       }
     }
@@ -782,6 +657,7 @@ client.on("interactionCreate", async interaction => {
     }
 
     else if (cmd === "asmaallah") {
+      // FIX: default to 1 when no number is provided
       const num = interaction.options.getInteger("number") || 1;
       try {
         const resp  = await fetchAllAsma();
@@ -830,43 +706,33 @@ client.on("interactionCreate", async interaction => {
     }
 
     else if (cmd === "collections") {
-      try {
-        await Promise.all(COLLECTION_KEYS.map(k => loadCollection(k).catch(() => null)));
-        const total = COLLECTION_KEYS.reduce((s, k) => s + (COLLECTIONS[k].total || 0), 0);
-        const embed = new EmbedBuilder()
-          .setColor(0x5C4033)
-          .setTitle("📚  Available Hadith Collections")
-          .setDescription(
-            Object.entries(COLLECTIONS).map(([, v]) =>
-              `${v.emoji} **${v.name}** (${v.arabic}) — ${(v.total || 0).toLocaleString()} hadiths`
-            ).join("\n") +
-            `\n\n**Total: ${total.toLocaleString()} hadiths** across ${COLLECTION_KEYS.length} collections`
-          )
-          .setFooter({ text: "Hadith text: hadith-json • Grades: fawazahmed0/hadith-api" });
-        await interaction.editReply({ embeds: [embed] });
-      } catch (e) {
-        await interaction.editReply({ embeds: [buildErrorEmbed("Could not load collection data.")] });
-      }
+      const total = Object.values(COLLECTIONS).reduce((s, c) => s + c.total, 0);
+      const embed = new EmbedBuilder()
+        .setColor(0x5C4033)
+        .setTitle("📚  Available Hadith Collections")
+        .setDescription(
+          Object.entries(COLLECTIONS).map(([, v]) =>
+            `${v.emoji} **${v.name}** (${v.arabic}) — ${v.total.toLocaleString()} hadiths`
+          ).join("\n") +
+          `\n\n**Total: ${total.toLocaleString()} hadiths** across ${COLLECTION_KEYS.length} collections`
+        )
+        .setFooter({ text: "Powered by UmmahAPI • ummahapi.com" });
+      await interaction.editReply({ embeds: [embed] });
     }
 
     else if (cmd === "explore") {
-      try {
-        await Promise.all(COLLECTION_KEYS.map(k => loadCollection(k).catch(() => null)));
-        const embed = new EmbedBuilder()
-          .setColor(0x4E342E)
-          .setTitle("📚  Islamic Knowledge Explorer")
-          .setDescription(
-            "Select a collection from the dropdown to start browsing.\n" +
-            "Use **◀ Prev / Next ▶** to navigate hadith by hadith, or **🎲 Random** to jump.\n\n" +
-            Object.entries(COLLECTIONS).map(([, v]) =>
-              `${v.emoji} **${v.name}** — ${(v.total || 0).toLocaleString()} hadiths`
-            ).join("\n")
-          )
-          .setFooter({ text: "بسم الله الرحمن الرحيم • In the name of Allah" });
-        await interaction.editReply({ embeds: [embed], components: [buildCollectionMenu()] });
-      } catch (e) {
-        await interaction.editReply({ embeds: [buildErrorEmbed("Could not load explorer.")] });
-      }
+      const embed = new EmbedBuilder()
+        .setColor(0x4E342E)
+        .setTitle("📚  Islamic Knowledge Explorer")
+        .setDescription(
+          "Select a collection from the dropdown to start browsing.\n" +
+          "Use **◀ Prev / Next ▶** to navigate hadith by hadith, or **🎲 Random** to jump.\n\n" +
+          Object.entries(COLLECTIONS).map(([, v]) =>
+            `${v.emoji} **${v.name}** — ${v.total.toLocaleString()} hadiths`
+          ).join("\n")
+        )
+        .setFooter({ text: "بسم الله الرحمن الرحيم • In the name of Allah" });
+      await interaction.editReply({ embeds: [embed], components: [buildCollectionMenu()] });
     }
 
     else {
@@ -884,11 +750,10 @@ client.on("interactionCreate", async interaction => {
       await interaction.deferUpdate();
       const colKey = interaction.values[0];
       try {
-        const book = await loadCollection(colKey);
         const data = await fetchHadith(colKey, 1);
         await interaction.editReply({
           embeds: [buildHadithEmbed(data)],
-          components: [buildHadithNavButtons(colKey, 1, book.hadiths.length), buildCollectionMenu()]
+          components: [buildHadithNavButtons(colKey, 1), buildCollectionMenu()]
         });
       } catch {
         await interaction.editReply({ embeds: [buildErrorEmbed("Could not load that collection.")] });
@@ -962,11 +827,10 @@ client.on("interactionCreate", async interaction => {
       const colKey = parts[2];
       const num    = parseInt(parts[3]);
       try {
-        const book = await loadCollection(colKey);
         const data = await fetchHadith(colKey, num);
         await interaction.editReply({
           embeds: [buildHadithEmbed(data)],
-          components: [buildHadithNavButtons(colKey, num, book.hadiths.length), buildCollectionMenu()]
+          components: [buildHadithNavButtons(colKey, num), buildCollectionMenu()]
         });
       } catch {
         await interaction.editReply({ embeds: [buildErrorEmbed(`Could not load hadith #${num}.`)] });
@@ -979,12 +843,11 @@ client.on("interactionCreate", async interaction => {
       const colKey = parts[2];
       const num    = parseInt(parts[3]);
       try {
-        const book      = await loadCollection(colKey);
         const data      = await fetchHadith(colKey, num);
         const hasArabic = interaction.message.embeds[0]?.fields?.some(f => f.name === "🕌 Arabic") || false;
         await interaction.editReply({
           embeds: [buildHadithEmbed(data, !hasArabic)],
-          components: [buildHadithNavButtons(colKey, num, book.hadiths.length, !hasArabic), buildCollectionMenu()]
+          components: [buildHadithNavButtons(colKey, num, !hasArabic), buildCollectionMenu()]
         });
       } catch {
         await interaction.editReply({ embeds: [buildErrorEmbed("Could not load Arabic text.")] });
