@@ -252,6 +252,9 @@ function clean(s) {
 //  Arabic text:   GET /editions/{ara-key}/{number}.json
 //    { hadithnumber: N, hadith: [{ number, text }] }
 // ═══════════════════════════════════════════════════════════════
+// Collections that are universally Sahih — fawaz has no per-hadith grades for these
+const ALWAYS_SAHIH = new Set(["bukhari", "muslim"]);
+
 async function fawazFetch(edition, number) {
   const res = await fetch(`${FAWAZ}/${edition}/${number}.json`);
   if (!res.ok) throw new Error(`fawaz HTTP ${res.status} — ${edition}/${number}`);
@@ -259,26 +262,52 @@ async function fawazFetch(edition, number) {
 }
 
 function parseHadith(engData, araData, colKey) {
-  // Real fawaz structure:
-  // { hadiths: [{ hadithnumber, text, grades: [{ name, grade }], reference: { book, hadith } }] }
+  // Confirmed fawaz structure:
+  // { metadata: { name, section: { "N": "Chapter Name" } },
+  //   hadiths: [{ hadithnumber, arabicnumber, text,
+  //               grades: [{ name: "Al-Albani", grade: "Sahih" }],
+  //               reference: { book, hadith } }] }
   const h = engData.hadiths?.[0] ?? {};
   const a = araData?.hadiths?.[0] ?? {};
 
   const english = clean(h.text ?? "");
   const arabic  = clean(a.text ?? "");
   const number  = `${h.hadithnumber ?? h.arabicnumber ?? "?"}`;
+  const grades  = h.grades ?? [];
 
-  // grades: array of { name (scholar), grade }
-  const grades   = h.grades ?? [];
-  const rawGrade = grades[0]?.grade ?? null;
-  const gradedBy = grades.map(g => g.name).filter(Boolean).join(", ") || null;
+  let finalGrade, allGrades;
+  if (grades.length === 0 && ALWAYS_SAHIH.has(colKey)) {
+    // Bukhari & Muslim: universally accepted Sahih — no per-hadith grades in fawaz
+    finalGrade = "Sahih";
+    allGrades  = "🟢 **Sahih** *(Agreed Upon — Muttafaqun Alayh)*";
+  } else if (grades.length > 0) {
+    // Prefer Al-Albani grade as primary, else first grade
+    const primary = grades.find(g => /albani/i.test(g.name)) ?? grades[0];
+    finalGrade = normalGrade(primary.grade);
+    // List every scholar + their grade
+    allGrades  = grades
+      .map(g => {
+        const gMeta = GRADE_META[normalGrade(g.grade)];
+        const emoji = gMeta?.emoji ?? "⚪";
+        return `${emoji} **${g.name}**: ${g.grade}`;
+      })
+      .join("\n");
+  } else {
+    finalGrade = null;
+    allGrades  = null;
+  }
 
-  // section info from metadata
+  // Section name (e.g. "Prayer (Kitab Al-Salat)")
   const section = engData.metadata?.section
     ? Object.values(engData.metadata.section)[0] ?? null
     : null;
 
-  return { colKey, number, english, arabic, grade: normalGrade(rawGrade), gradedBy, section };
+  // Book reference (e.g. "Book 2, Hadith 646")
+  const ref = h.reference
+    ? `Book ${h.reference.book}, Hadith ${h.reference.hadith}`
+    : null;
+
+  return { colKey, number, english, arabic, grade: finalGrade, allGrades, section, ref };
 }
 
 async function fetchHadith(colKey, number) {
