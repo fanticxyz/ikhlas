@@ -259,19 +259,26 @@ async function fawazFetch(edition, number) {
 }
 
 function parseHadith(engData, araData, colKey) {
-  const h = engData.hadith?.[0] ?? {};
-  const a = araData?.hadith?.[0] ?? {};
+  // Real fawaz structure:
+  // { hadiths: [{ hadithnumber, text, grades: [{ name, grade }], reference: { book, hadith } }] }
+  const h = engData.hadiths?.[0] ?? {};
+  const a = araData?.hadiths?.[0] ?? {};
 
   const english = clean(h.text ?? "");
   const arabic  = clean(a.text ?? "");
-  const number  = `${engData.hadithnumber ?? h.number ?? "?"}`;
+  const number  = `${h.hadithnumber ?? h.arabicnumber ?? "?"}`;
 
-  // grades: array of { grade, graded_by }
+  // grades: array of { name (scholar), grade }
   const grades   = h.grades ?? [];
   const rawGrade = grades[0]?.grade ?? null;
-  const gradedBy = grades.map(g => g.graded_by).filter(Boolean).join(", ") || null;
+  const gradedBy = grades.map(g => g.name).filter(Boolean).join(", ") || null;
 
-  return { colKey, number, english, arabic, grade: normalGrade(rawGrade), gradedBy };
+  // section info from metadata
+  const section = engData.metadata?.section
+    ? Object.values(engData.metadata.section)[0] ?? null
+    : null;
+
+  return { colKey, number, english, arabic, grade: normalGrade(rawGrade), gradedBy, section };
 }
 
 async function fetchHadith(colKey, number) {
@@ -407,6 +414,7 @@ function hadithEmbed(h, showArabic = false) {
     { name: "📖 Collection", value: col.name,       inline: true },
     { name: "🔢 Number",     value: `#${h.number}`, inline: true }
   );
+  if (h.section) embed.addFields({ name: "📑 Section", value: h.section, inline: false });
   if (showArabic && h.arabic) {
     embed.addFields({ name: "🕌 Arabic", value: `\`\`\`${h.arabic.substring(0, 1000)}\`\`\`` });
   }
