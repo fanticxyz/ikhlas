@@ -20,7 +20,14 @@ const {
   StringSelectMenuBuilder,
 } = require("discord.js");
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,   // required to read message content
+    GatewayIntentBits.DirectMessages,
+  ],
+});
 
 // ─────────────────────────────────────────────────────
 //  API BASES
@@ -1100,6 +1107,138 @@ client.on("interactionCreate", async interaction => {
         await interaction.editReply({ embeds: [errEmbed("Could not load that name.")] });
       }
     }
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  AUTO VERSE DETECTION  (BibleBot-style)
+//
+//  Supported patterns in any message:
+//    Numeric only:       2:54   18:1   1:1
+//    Surah name + ref:   Al-Kahf 18:1   Baqarah 2:255   Yasin 36:1
+//    Name then colon:    Al-Kahf:1   Baqarah:255
+//    With brackets:      [2:255]   [Al-Baqarah 2:255]
+//
+//  Rules:
+//    • Ignores bot messages
+//    • Max 3 verses per message to avoid spam
+//    • React ❌ on the bot reply to delete it
+// ═══════════════════════════════════════════════════════════════
+
+const MAX_AUTO_VERSES = 3;
+
+// Max ayah per surah for validation
+const SURAH_MAX_AYAH = [
+  0,7,286,200,176,120,165,206,75,129,109,
+  123,111,43,52,99,128,111,110,98,135,
+  112,78,118,64,77,227,93,88,69,60,
+  34,30,73,54,45,83,182,88,75,85,
+  54,53,89,59,37,35,38,29,18,45,
+  60,49,62,55,78,96,29,22,24,13,
+  14,11,11,18,12,12,30,52,52,44,
+  28,28,20,56,40,31,50,40,46,42,
+  29,19,36,25,22,17,19,26,30,20,
+  15,21,11,8,8,19,5,8,8,11,
+  11,8,3,9,5,4,7,3,6,3,
+  5,4,5,4,
+];
+
+function isValidAyah(surahN, ayahN) {
+  return surahN >= 1 && surahN <= 114 && ayahN >= 1 && ayahN <= (SURAH_MAX_AYAH[surahN] || 286);
+}
+
+// Regex: optional [bracket], optional surahName, surahNum:ayahNum, optional -range]
+// Captures: (1) surahName  (2) surahNum  (3) ayahNum
+const VERSE_PATTERN = /\[?(?:([\w\u0600-\u06FF''\-\u2019 ]{2,40})\s+)?(\d{1,3}):(\d{1,3})(?:-\d{1,3})?\]?/g;
+
+function autoAyahEmbed(v, trKey = DEFAULT_TR) {
+  const tr  = TRANSLATIONS[trKey] ?? TRANSLATIONS[DEFAULT_TR];
+  const ref = `${v.surahName} ${v.surahNum}:${v.ayahNum}`;
+  return new EmbedBuilder()
+    .setColor(0x1B5E20)
+    .setTitle(`${ref}  —  ${tr.flag} ${tr.name}`)
+    .setDescription(
+      `**<${v.ayahNum}>** ${v.translation || "Translation unavailable."}\n\n` +
+      `> ${v.arabic}`
+    )
+    .setFooter({
+      text: `${v.surahName} (${v.surahArabic}) • ${v.surahNum}:${v.ayahNum}/${v.totalAyahs} • الإسلام بوت`,
+    });
+}
+
+// Per-channel cooldown (5 s) to prevent spam
+const autoVerseCooldown = new Map();
+const AUTO_VERSE_COOLDOWN_MS = 5000;
+
+client.on("messageCreate", async message => {
+  if (message.author.bot || message.webhookId) return;
+
+  const content = message.content;
+  if (!content || content.length < 3) return;
+
+  // Channel cooldown check
+  const now = Date.now();
+  if (now - (autoVerseCooldown.get(message.channelId) || 0) < AUTO_VERSE_COOLDOWN_MS) return;
+
+  const matches = [];
+  let match;
+  VERSE_PATTERN.lastIndex = 0;
+
+  while ((match = VERSE_PATTERN.exec(content)) !== null && matches.length < MAX_AUTO_VERSES) {
+    const rawName  = match[1]?.trim() || null;
+    const numPart  = parseInt(match[2]);
+    const ayahPart = parseInt(match[3]);
+
+    let surahN = null;
+
+    if (rawName) {
+      // Name given — resolve by name, fallback to the number
+      surahN = resolveSurah(rawName) ?? (numPart >= 1 && numPart <= 114 ? numPart : null);
+    } else {
+      // Pure "S:A" — first number is the surah
+      surahN = numPart >= 1 && numPart <= 114 ? numPart : null;
+    }
+
+    if (!surahN || !isValidAyah(surahN, ayahPart)) continue;
+
+    const key = `${surahN}:${ayahPart}`;
+    if (matches.some(m => m.key === key)) continue;
+    matches.push({ surahN, ayahN: ayahPart, key });
+  }
+
+  if (!matches.length) return;
+
+  autoVerseCooldown.set(message.channelId, now);
+
+  const results = await Promise.allSettled(
+    matches.map(m => fetchAyah(m.surahN, m.ayahN, DEFAULT_TR))
+  );
+
+  const embeds = results
+    .filter(r => r.status === "fulfilled")
+    .map(r => autoAyahEmbed(r.value, DEFAULT_TR));
+
+  if (!embeds.length) return;
+
+  try {
+    const reply = await message.reply({
+      embeds,
+      allowedMentions: { repliedUser: false },
+    });
+
+    // ❌ react so author can delete the bot reply
+    await reply.react("❌").catch(() => {});
+
+    const filter = (reaction, user) =>
+      reaction.emoji.name === "❌" && user.id === message.author.id;
+
+    reply
+      .awaitReactions({ filter, max: 1, time: 60_000, errors: [] })
+      .then(collected => {
+        if (collected.size) reply.delete().catch(() => {});
+      });
+  } catch (e) {
+    console.error("autoVerse reply error:", e);
   }
 });
 
