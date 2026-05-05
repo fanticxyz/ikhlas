@@ -260,16 +260,8 @@ function truncate(s, max = 3800) {
 
 // ═══════════════════════════════════════════════════════════════
 //  SUNNAH.COM API — HADITH BACKEND
-//
-//  Endpoints used:
-//    GET /collections/{collectionId}/hadiths/{hadithNumber}
-//      → { hadiths: [{ hadithNumber, text, arabicText, grades: [{grade, graded_by}],
-//                      book: { bookName, bookNumber }, chapter: { chapterEnglish } }] }
-//
-//  All requests need header: x-api-key: <key>
 // ═══════════════════════════════════════════════════════════════
 
-/** Wrapper for all sunnah.com API calls */
 async function sunnahFetch(path) {
   const res = await fetch(`${SUNNAH}${path}`, {
     headers: { "x-api-key": SUNNAH_KEY },
@@ -278,22 +270,10 @@ async function sunnahFetch(path) {
   return res.json();
 }
 
-/**
- * Fetch a single hadith by collection + hadith number.
- * sunnah.com returns paginated hadiths; we search via /hadiths?limit=1
- * and filter by hadithNumber, or use the direct endpoint if available.
- *
- * Endpoint: GET /collections/{col}/hadiths/{num}
- * Response: { data: { hadithNumber, text, arabicText,
- *                     grades: [{grade, graded_by}],
- *                     book: {bookName, bookNumber},
- *                     chapter: {chapterEnglish, chapterArabic} } }
- */
 async function fetchHadith(colKey, number) {
   const col  = COLLECTIONS[colKey];
   const data = await sunnahFetch(`/collections/${col.collectionId}/hadiths/${number}`);
 
-  // sunnah.com wraps in { data: { ... } }
   const h = data.data ?? data;
 
   const english   = clean(h.text ?? h.body ?? "");
@@ -305,7 +285,6 @@ async function fetchHadith(colKey, number) {
   const chapter   = h.chapter?.chapterEnglish ?? h.chapter?.chapter_english ?? "";
   const chapterAr = h.chapter?.chapterArabic  ?? h.chapter?.chapter_arabic  ?? "";
 
-  // Grade resolution
   let finalGrade, allGrades;
   const ALWAYS_SAHIH = new Set(["bukhari", "muslim"]);
 
@@ -326,7 +305,6 @@ async function fetchHadith(colKey, number) {
     allGrades  = null;
   }
 
-  // Reference string: "Book X, Hadith Y"
   const ref = bookNum
     ? `Book ${bookNum}${h.hadithNumber ? `, Hadith ${h.hadithNumber}` : ""}`
     : null;
@@ -341,19 +319,11 @@ async function fetchRandomHadith(colKey) {
   return fetchHadith(key, num);
 }
 
-/**
- * Fetch a list of available hadith collections from sunnah.com.
- * GET /collections  → { data: [{ name, hasBooks, totalHadith, ... }] }
- */
 async function fetchCollectionsList() {
   const data = await sunnahFetch("/collections?limit=20");
   return data.data ?? data;
 }
 
-/**
- * Fetch books within a collection.
- * GET /collections/{col}/books  → { data: [{ bookNumber, bookName, hadithStartNumber, hadithEndNumber }] }
- */
 async function fetchBooks(colKey) {
   const col  = COLLECTIONS[colKey];
   const data = await sunnahFetch(`/collections/${col.collectionId}/books?limit=100`);
@@ -361,7 +331,7 @@ async function fetchBooks(colKey) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  QURAN  (AlQuran Cloud) — unchanged
+//  QURAN  (AlQuran Cloud)
 // ═══════════════════════════════════════════════════════════════
 async function fetchAyah(surahN, ayahN, trKey = DEFAULT_TR) {
   const ed  = TRANSLATIONS[trKey]?.edition ?? TRANSLATIONS[DEFAULT_TR].edition;
@@ -436,7 +406,7 @@ async function fetchSurah(surahN, trKey = DEFAULT_TR) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  UMMAHAPI  (Tafsir · Dua · Asma · Hijri) — unchanged
+//  UMMAHAPI  (Tafsir · Dua · Asma · Hijri)
 // ═══════════════════════════════════════════════════════════════
 async function ummahFetch(path) {
   const res  = await fetch(`${UMMAH}${path}`);
@@ -599,7 +569,6 @@ function colMenu() {
   );
 }
 
-// customId: {code}|{colKey}|{num}
 function hadithBtns(colKey, num, showArabic = false) {
   const col  = COLLECTIONS[colKey];
   const n    = parseInt(num) || 1;
@@ -1112,22 +1081,10 @@ client.on("interactionCreate", async interaction => {
 
 // ═══════════════════════════════════════════════════════════════
 //  AUTO VERSE DETECTION  (BibleBot-style)
-//
-//  Supported patterns in any message:
-//    Numeric only:       2:54   18:1   1:1
-//    Surah name + ref:   Al-Kahf 18:1   Baqarah 2:255   Yasin 36:1
-//    Name then colon:    Al-Kahf:1   Baqarah:255
-//    With brackets:      [2:255]   [Al-Baqarah 2:255]
-//
-//  Rules:
-//    • Ignores bot messages
-//    • Max 3 verses per message to avoid spam
-//    • React ❌ on the bot reply to delete it
 // ═══════════════════════════════════════════════════════════════
 
 const MAX_AUTO_VERSES = 3;
 
-// Max ayah per surah for validation
 const SURAH_MAX_AYAH = [
   0,7,286,200,176,120,165,206,75,129,109,
   123,111,43,52,99,128,111,110,98,135,
@@ -1147,8 +1104,6 @@ function isValidAyah(surahN, ayahN) {
   return surahN >= 1 && surahN <= 114 && ayahN >= 1 && ayahN <= (SURAH_MAX_AYAH[surahN] || 286);
 }
 
-// Regex: optional [bracket], optional surahName, surahNum:ayahNum, optional -range]
-// Captures: (1) surahName  (2) surahNum  (3) ayahNum
 const VERSE_PATTERN = /\[?(?:([\w\u0600-\u06FF''\-\u2019 ]{2,40})\s+)?(\d{1,3}):(\d{1,3})(?:-\d{1,3})?\]?/g;
 
 function autoAyahEmbed(v, trKey = DEFAULT_TR) {
@@ -1166,7 +1121,6 @@ function autoAyahEmbed(v, trKey = DEFAULT_TR) {
     });
 }
 
-// Per-channel cooldown (5 s) to prevent spam
 const autoVerseCooldown = new Map();
 const AUTO_VERSE_COOLDOWN_MS = 5000;
 
@@ -1176,7 +1130,6 @@ client.on("messageCreate", async message => {
   const content = message.content;
   if (!content || content.length < 3) return;
 
-  // Channel cooldown check
   const now = Date.now();
   if (now - (autoVerseCooldown.get(message.channelId) || 0) < AUTO_VERSE_COOLDOWN_MS) return;
 
@@ -1192,10 +1145,8 @@ client.on("messageCreate", async message => {
     let surahN = null;
 
     if (rawName) {
-      // Name given — resolve by name, fallback to the number
       surahN = resolveSurah(rawName) ?? (numPart >= 1 && numPart <= 114 ? numPart : null);
     } else {
-      // Pure "S:A" — first number is the surah
       surahN = numPart >= 1 && numPart <= 114 ? numPart : null;
     }
 
@@ -1226,11 +1177,11 @@ client.on("messageCreate", async message => {
       allowedMentions: { repliedUser: false },
     });
 
-    // ❌ react so author can delete the bot reply
-    await reply.react("❌").catch(() => {});
+    // ♻️ react so author can delete the bot reply
+    await reply.react("♻️").catch(() => {});
 
     const filter = (reaction, user) =>
-      reaction.emoji.name === "❌" && user.id === message.author.id;
+      reaction.emoji.name === "♻️" && user.id === message.author.id;
 
     reply
       .awaitReactions({ filter, max: 1, time: 60_000, errors: [] })
