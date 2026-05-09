@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- *   ISLAMIC KNOWLEDGE BOT  —  v2  (sunnah.com API backend)
+ *   ISLAMIC KNOWLEDGE BOT  —  v3  (sunnah.com API backend)
  * ═══════════════════════════════════════════════════════════════
  *
  *  Hadith  — sunnah.com API  (api.sunnah.com)  KEY: SUNNAH_API_KEY
@@ -24,7 +24,7 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,   // required to read message content
+    GatewayIntentBits.MessageContent,
     GatewayIntentBits.DirectMessages,
   ],
 });
@@ -40,7 +40,6 @@ const SUNNAH_KEY = process.env.SUNNAH_API_KEY || "cKKr53NtU7VQ1FfvKcjMVf7ANxz31i
 
 // ─────────────────────────────────────────────────────
 //  COLLECTIONS
-//  collectionId — sunnah.com collection identifier
 // ─────────────────────────────────────────────────────
 const COLLECTIONS = {
   bukhari:   { name: "Sahih al-Bukhari",    arabic: "صحيح البخاري",       color: 0x1B5E20, emoji: "📗", total: 7563, collectionId: "bukhari"   },
@@ -59,7 +58,7 @@ const COLLECTIONS = {
 const COL_KEYS = Object.keys(COLLECTIONS);
 
 // ─────────────────────────────────────────────────────
-//  QURAN TRANSLATIONS  (AlQuran Cloud edition IDs)
+//  QURAN TRANSLATIONS
 // ─────────────────────────────────────────────────────
 const TRANSLATIONS = {
   sahih_international: { name: "Saheeh International", flag: "🇬🇧", edition: "en.sahih"    },
@@ -70,7 +69,7 @@ const TRANS_KEYS  = Object.keys(TRANSLATIONS);
 const DEFAULT_TR  = "sahih_international";
 
 // ─────────────────────────────────────────────────────
-//  TAFSIR EDITIONS  (UmmahAPI)
+//  TAFSIR EDITIONS
 // ─────────────────────────────────────────────────────
 const TAFSIRS = {
   ibn_kathir:    { name: "Ibn Kathir (Abridged)", scholar: "Hafiz Ibn Kathir",                         lang: "English", flag: "🇬🇧" },
@@ -80,7 +79,7 @@ const TAFSIRS = {
 };
 
 // ─────────────────────────────────────────────────────
-//  DUA CATEGORIES  (UmmahAPI)
+//  DUA CATEGORIES
 // ─────────────────────────────────────────────────────
 const DUAS = {
   morning:      { name: "Morning Adhkar",     emoji: "🌅", count: 7 },
@@ -107,9 +106,231 @@ const DUAS = {
 };
 const DUA_KEYS = Object.keys(DUAS);
 
+// ═══════════════════════════════════════════════════════════════
+//  MIRACLES OF THE QUR'AN
+// ═══════════════════════════════════════════════════════════════
+
+const MIRACLES = {
+  expanding_universe: {
+    id:          "expanding_universe",
+    emoji:       "🌌",
+    title:       "The Expansion of the Universe",
+    subtitle:    "Cosmic Expansion — Surah Adh-Dhariyat 51:47",
+    color:       0x0D1B4B,
+    verse_ar:    "وَٱلسَّمَآءَ بَنَيْنَـٰهَا بِأَيۡي۟دٍۢ وَإِنَّا لَمُوسِعُونَ ٤٧",
+    verse_en:    "We built the universe with ˹great˺ might, and We are certainly expanding ˹it˺.",
+    reference:   "Surah Adh-Dhariyat (51:47)",
+    surah:       51,
+    ayah:        47,
+    keyword:     "لَمُوسِعُونَ  (lamūsi'ūn)",
+    keyword_meaning: "We are expanding — present tense, ongoing action",
+    explanation: [
+      "The Qur'an says Allah is **actively expanding** the heavens. The Arabic **\"lamūsi'ūn\"** (لَمُوسِعُونَ) comes from the root *wasi'a* — meaning *to expand* or *to stretch out*.",
+      "It is written in the **present continuous plural**, meaning an **ongoing, unceasing action** — not a completed one. Literally: *\"We are expanding it, right now.\"*",
+      "The universe is not static. It is **growing at this very moment**, in every direction, faster than the speed of light at its edges. The Qur'an described this 14 centuries before any human knew.",
+    ],
+    science: [
+      "**1929 — Edwin Hubble** observed galaxies receding from Earth. The farther the galaxy, the faster it moves away. This is **Hubble's Law** — the first empirical proof the universe expands.",
+      "The **Big Bang model** confirmed this expansion began ~13.8 billion years ago and is **accelerating**, driven by dark energy filling all of space.",
+      "In **2011, the Nobel Prize in Physics** was awarded to Saul Perlmutter, Brian Schmidt, and Adam Riess for discovering that this expansion is not slowing — it is *speeding up*.",
+    ],
+    reflection:
+      "Ancient civilisations — Greek, Roman, Persian, Chinese — universally believed the cosmos was **eternal and static**. No natural reasoning in the 7th century pointed to an expanding universe. Yet the Qur'an used a present-tense verb that precisely matches what Nobel laureates confirmed 1,400 years later.\n\n**How could a man in the Arabian desert have known what required space telescopes and Nobel prizes to confirm?**",
+    proof_label: "✅  UNDENIABLE PROOF  ✅",
+  },
+
+  iron_from_space: {
+    id:          "iron_from_space",
+    emoji:       "⚙️",
+    title:       "Iron Sent Down From Space",
+    subtitle:    "Cosmic Metallurgy — Surah Al-Hadid 57:25",
+    color:       0x37474F,
+    verse_ar:    "وَأَنزَلْنَا ٱلْحَدِيدَ فِيهِ بَأْسٌۭ شَدِيدٌۭ",
+    verse_en:    "And We sent down iron, in which there is great military might and benefits for humanity.",
+    reference:   "Surah Al-Hadid (57:25)",
+    surah:       57,
+    ayah:        25,
+    keyword:     "أَنزَلْنَا  (anzalnā)",
+    keyword_meaning: "We sent down — the same word used for revelation and rain from above",
+    explanation: [
+      "The Arabic **\"anzalnā\"** (أَنزَلْنَا) means *\"We sent down\"* — the same word used for sending down rain and revelation from the heavens. Iron is described as descending, not as something created on Earth.",
+      "This was scientifically puzzling for centuries — why would iron be *sent down*? The Earth makes iron in its core, so why not say *\"We created iron\"*?",
+      "Modern astrophysics answered this: **iron cannot be forged inside a star like our Sun.** It requires energies beyond stellar fusion — a supernova. Iron literally *came from space*, seeded into the young solar system by ancient stellar explosions.",
+    ],
+    science: [
+      "**Nuclear fusion** inside stars builds elements up to iron. But fusing iron *absorbs* energy instead of releasing it — it is the most stable nucleus. Stars collapse and explode (supernova) when their cores become pure iron.",
+      "**All iron on Earth** — including the iron in your blood — was forged in supernovae that predated our solar system, then scattered across space, eventually incorporated into Earth during its formation.",
+      "The Surah is even named **Al-Hadid (The Iron)**, and its number **57** corresponds to an isotopic property of iron — an observation noted by researchers studying Qur'anic numerology.",
+    ],
+    reflection:
+      "No 7th-century human knew that iron comes from dying stars. The word choice **\"sent down\"** was dismissed as poetic metaphor for centuries — until astrophysics confirmed it is *literally true*. Iron was sent down to Earth from the cosmos.\n\n**The precision of a single Arabic word encoded a fact of nuclear astrophysics.**",
+    proof_label: "✅  UNDENIABLE PROOF  ✅",
+  },
+
+  water_origin_of_life: {
+    id:          "water_origin_of_life",
+    emoji:       "💧",
+    title:       "Every Living Thing Made of Water",
+    subtitle:    "Biology of Life — Surah Al-Anbiya 21:30",
+    color:       0x01579B,
+    verse_ar:    "وَجَعَلْنَا مِنَ ٱلْمَآءِ كُلَّ شَىْءٍ حَىٍّ ۖ أَفَلَا يُؤْمِنُونَ",
+    verse_en:    "And We made from water every living thing. Will they not then believe?",
+    reference:   "Surah Al-Anbiya (21:30)",
+    surah:       21,
+    ayah:        30,
+    keyword:     "كُلَّ شَىْءٍ حَىٍّ  (kulla shay'in ḥayy)",
+    keyword_meaning: "Every living thing — absolute, no exceptions",
+    explanation: [
+      "The Qur'an states, without qualification, that **every living thing is made from water**. Not *most* living things. Not *things near water*. **Every single living organism** — kulla shay'in ḥayy.",
+      "In the 7th century, this was not obvious knowledge. Deserts contain life (scorpions, cacti, camels) that seemed to contradict water dependency. The statement was extraordinary.",
+      "The verse also appears in the same passage discussing the Big Bang — the heavens and earth being *ratq* (joined) and then *fatq* (split apart) — suggesting these are intentional scientific disclosures, not poetic coincidences.",
+    ],
+    science: [
+      "**Modern biology** confirms: every known living cell is 70–90% water. Life as we know it is impossible without liquid water. DNA replication, protein folding, metabolism — all require water as a solvent.",
+      "**Astrobiology** uses water as the primary marker in the search for extraterrestrial life. The discovery of liquid water anywhere in the universe is treated as the strongest indicator of possible life.",
+      "**Origins of life research** (abiogenesis) consistently points to water as the medium in which the first self-replicating molecules formed. Life did not just *need* water — it was *born in* water.",
+    ],
+    reflection:
+      "Ancient civilisations worshipped fire, earth, wind, and water as equal elements. None concluded that water uniquely underlies *all* life. This required cell biology, biochemistry, and molecular science to confirm.\n\n**The Qur'an made an absolute biological claim 14 centuries before the microscope existed.**",
+    proof_label: "✅  UNDENIABLE PROOF  ✅",
+  },
+
+  fingerprints: {
+    id:          "fingerprints",
+    emoji:       "👆",
+    title:       "The Uniqueness of Fingerprints",
+    subtitle:    "Biometric Identity — Surah Al-Qiyamah 75:3-4",
+    color:       0x4A148C,
+    verse_ar:    "أَيَحْسَبُ ٱلْإِنسَـٰنُ أَلَّن نَّجْمَعَ عِظَامَهُۥ ۝ بَلَىٰ قَـٰدِرِينَ عَلَىٰٓ أَن نُّسَوِّىَ بَنَانَهُۥ",
+    verse_en:    "Does man think We cannot reassemble his bones? Yes ˹We can˺ — We are ˹even˺ able to reshape his very fingertips.",
+    reference:   "Surah Al-Qiyamah (75:3-4)",
+    surah:       75,
+    ayah:        4,
+    keyword:     "بَنَانَهُۥ  (banānahū)",
+    keyword_meaning: "His fingertips / the tips of his fingers — singled out among all body parts",
+    explanation: [
+      "When Allah describes resurrection and reassembling the human body, He singles out **fingertips** as a specific example of His power. Why fingertips? Bones are large, obvious — why not mention the skull or spine?",
+      "The answer is that fingertips carry **unique ridge patterns** — no two humans in history have ever shared the same fingerprints. Not even identical twins. The fingertip is the most individuating part of the entire human body.",
+      "Allah is saying: not only can He reassemble bones — He can reconstruct you so precisely that even your **unique fingerprint identity** is restored. A claim that simultaneously establishes the uniqueness of fingerprints.",
+    ],
+    science: [
+      "**1880 — Francis Galton** scientifically established that fingerprints are unique and permanent — the foundation of forensic dactyloscopy. Scotland Yard adopted fingerprinting in 1901.",
+      "Fingerprint ridges form in the womb between **weeks 10–24** of development, influenced by random folding patterns in the skin. Even genetically identical twins develop different prints — they are truly individual.",
+      "Today, fingerprints are used by **governments, banks, phone manufacturers, and border agencies** worldwide as the gold standard of biometric identification.",
+    ],
+    reflection:
+      "The Qur'an did not need to mention fingertips in a verse about resurrection. It could have said bones, or flesh, or the heart. But it chose **banānahū** — fingertips — the one body part science later confirmed is the unique signature of every individual.\n\n**Why fingertips? Because they are the only part of you that is truly, irreplaceably, uniquely *you*.**",
+    proof_label: "✅  UNDENIABLE PROOF  ✅",
+  },
+};
+
+const MIRACLE_KEYS = Object.keys(MIRACLES);
+
 // ─────────────────────────────────────────────────────
+//  MIRACLE EMBED BUILDER
+// ─────────────────────────────────────────────────────
+function miracleEmbed(key) {
+  const m = MIRACLES[key];
+  if (!m) return errEmbed("Miracle not found.");
+
+  const embed = new EmbedBuilder()
+    .setColor(m.color)
+    .setTitle(`${m.emoji}  ${m.title}`)
+    .setAuthor({ name: `✨ Miracles of the Qur'an  •  ${m.subtitle}` })
+    .setDescription(
+      `> *"${m.verse_en}"*\n` +
+      `> **${m.verse_ar}**\n` +
+      `> — *${m.reference}*`
+    );
+
+  embed.addFields({
+    name: "🔑 Key Arabic Word",
+    value: `**${m.keyword}**\n*${m.keyword_meaning}*`,
+    inline: false,
+  });
+
+  embed.addFields({
+    name: "📝 The Explanation",
+    value: m.explanation.join("\n\n"),
+    inline: false,
+  });
+
+  embed.addFields({
+    name: "🔬 Scientific Confirmation",
+    value: m.science.join("\n\n"),
+    inline: false,
+  });
+
+  embed.addFields({
+    name: "💚 Reflection",
+    value: m.reflection,
+    inline: false,
+  });
+
+  embed.addFields({
+    name: "\u200B",
+    value: `## ${m.proof_label}`,
+    inline: false,
+  });
+
+  embed.setFooter({
+    text: `سَنُرِيهِمْ آيَاتِنَا فِي الْآفَاقِ وَفِي أَنفُسِهِمْ — "We will show them Our signs in the horizons and within themselves." (41:53)`,
+  }).setTimestamp();
+
+  return embed;
+}
+
+// ─────────────────────────────────────────────────────
+//  MIRACLE COMPONENTS
+// ─────────────────────────────────────────────────────
+function miracleMenu(currentKey) {
+  return new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId("sm_miracle")
+      .setPlaceholder("✨ Browse miracles…")
+      .addOptions(
+        MIRACLE_KEYS.map(k => ({
+          label: `${MIRACLES[k].emoji}  ${MIRACLES[k].title}`,
+          description: MIRACLES[k].subtitle,
+          value: k,
+          default: k === currentKey,
+        }))
+      )
+  );
+}
+
+function miracleBtns(key) {
+  const m = MIRACLES[key];
+  const idx  = MIRACLE_KEYS.indexOf(key);
+  const prev = MIRACLE_KEYS[idx - 1] ?? null;
+  const next = MIRACLE_KEYS[idx + 1] ?? null;
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`mp_${prev ?? key}`)
+      .setLabel("◀ Prev")
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(!prev),
+    new ButtonBuilder()
+      .setCustomId(`mn_${next ?? key}`)
+      .setLabel("Next ▶")
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(!next),
+    new ButtonBuilder()
+      .setCustomId(`mv_${m.surah}_${m.ayah}`)
+      .setLabel("📖 View Ayah")
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId(`mt_${m.surah}_${m.ayah}`)
+      .setLabel("📚 Tafsir")
+      .setStyle(ButtonStyle.Primary),
+  );
+  return row;
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  SURAH NAME → NUMBER lookup
-// ─────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
 const SURAH_NAMES = [
   "Al-Fatihah","Al-Baqarah","Ali 'Imran","An-Nisa","Al-Ma'idah","Al-An'am","Al-A'raf","Al-Anfal","At-Tawbah","Yunus",
   "Hud","Yusuf","Ar-Ra'd","Ibrahim","Al-Hijr","An-Nahl","Al-Isra","Al-Kahf","Maryam","Ta-Ha",
@@ -259,7 +480,7 @@ function truncate(s, max = 3800) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  SUNNAH.COM API — HADITH BACKEND
+//  SUNNAH.COM API
 // ═══════════════════════════════════════════════════════════════
 
 async function sunnahFetch(path) {
@@ -273,9 +494,7 @@ async function sunnahFetch(path) {
 async function fetchHadith(colKey, number) {
   const col  = COLLECTIONS[colKey];
   const data = await sunnahFetch(`/collections/${col.collectionId}/hadiths/${number}`);
-
   const h = data.data ?? data;
-
   const english   = clean(h.text ?? h.body ?? "");
   const arabic    = clean(h.arabicText ?? h.arabic ?? "");
   const num       = `${h.hadithNumber ?? number}`;
@@ -284,10 +503,8 @@ async function fetchHadith(colKey, number) {
   const bookNum   = h.book?.bookNumber ?? "";
   const chapter   = h.chapter?.chapterEnglish ?? h.chapter?.chapter_english ?? "";
   const chapterAr = h.chapter?.chapterArabic  ?? h.chapter?.chapter_arabic  ?? "";
-
   let finalGrade, allGrades;
   const ALWAYS_SAHIH = new Set(["bukhari", "muslim"]);
-
   if (grades.length === 0 && ALWAYS_SAHIH.has(colKey)) {
     finalGrade = "Sahih";
     allGrades  = "🟢 **Sahih** *(Agreed Upon — Muttafaqun Alayh)*";
@@ -304,11 +521,9 @@ async function fetchHadith(colKey, number) {
     finalGrade = null;
     allGrades  = null;
   }
-
   const ref = bookNum
     ? `Book ${bookNum}${h.hadithNumber ? `, Hadith ${h.hadithNumber}` : ""}`
     : null;
-
   return { colKey, number: num, english, arabic, grade: finalGrade, allGrades, section: chapter, sectionAr: chapterAr, bookName, ref };
 }
 
@@ -317,17 +532,6 @@ async function fetchRandomHadith(colKey) {
   const col = COLLECTIONS[key];
   const num = Math.floor(Math.random() * col.total) + 1;
   return fetchHadith(key, num);
-}
-
-async function fetchCollectionsList() {
-  const data = await sunnahFetch("/collections?limit=20");
-  return data.data ?? data;
-}
-
-async function fetchBooks(colKey) {
-  const col  = COLLECTIONS[colKey];
-  const data = await sunnahFetch(`/collections/${col.collectionId}/books?limit=100`);
-  return data.data ?? data;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -406,7 +610,7 @@ async function fetchSurah(surahN, trKey = DEFAULT_TR) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  UMMAHAPI  (Tafsir · Dua · Asma · Hijri)
+//  UMMAHAPI
 // ═══════════════════════════════════════════════════════════════
 async function ummahFetch(path) {
   const res  = await fetch(`${UMMAH}${path}`);
@@ -427,16 +631,13 @@ const getHijri     = ()        => ummahFetch("/today-hijri");
 function hadithEmbed(h, showArabic = false) {
   const col = COLLECTIONS[h.colKey];
   const g   = h.grade ? (GRADE_META[h.grade] || { label: h.grade, emoji: "⚪", color: null }) : null;
-
   const englishText = truncate(h.english || "Translation unavailable.", 3800);
-
   const embed = new EmbedBuilder()
     .setColor(g?.color ?? col.color)
     .setAuthor({ name: `${col.emoji}  ${col.name}  •  Hadith #${h.number}` })
     .setDescription(`*"${englishText}"*`)
     .setFooter({ text: "sunnah.com API • لا علم إلا ما علَّم الله" })
     .setTimestamp();
-
   if (g) {
     embed.addFields({
       name: "📊 Grade",
@@ -691,6 +892,12 @@ const commands = [
   new SlashCommandBuilder().setName("daily").setDescription("Daily hadith, ayah, and dua"),
   new SlashCommandBuilder().setName("collections").setDescription("List all hadith collections"),
   new SlashCommandBuilder().setName("explore").setDescription("Explore hadith collections interactively"),
+
+  // ── NEW: /miracles ──────────────────────────────────────────
+  new SlashCommandBuilder().setName("miracles").setDescription("Explore the scientific miracles of the Qur'an")
+    .addStringOption(o => o.setName("miracle").setDescription("Choose a miracle (default: Expansion of the Universe)")
+      .addChoices(...MIRACLE_KEYS.map(k => ({ name: `${MIRACLES[k].emoji} ${MIRACLES[k].title}`, value: k })))),
+
 ].map(c => c.toJSON());
 
 // ═══════════════════════════════════════════════════════════════
@@ -698,7 +905,7 @@ const commands = [
 // ═══════════════════════════════════════════════════════════════
 client.once("ready", async () => {
   console.log(`✅ Bot ready: ${client.user.tag}`);
-  const [typeRaw, ...parts] = (process.env.BOT_STATUS || "WATCHING:📖 /ayah /hadith /dua").split(":");
+  const [typeRaw, ...parts] = (process.env.BOT_STATUS || "WATCHING:📖 /ayah /hadith /miracles /dua").split(":");
   client.user.setPresence({
     activities: [{ name: parts.join(":"), type: { PLAYING:0,STREAMING:1,LISTENING:2,WATCHING:3,COMPETING:5 }[typeRaw.toUpperCase()] ?? 3 }],
     status: process.env.BOT_ONLINE_STATUS || "online",
@@ -895,6 +1102,17 @@ client.on("interactionCreate", async interaction => {
           .setFooter({ text: "بسم الله الرحمن الرحيم" })
       ], components: [colMenu()] });
     }
+
+    // /miracles ─────────────────────────────────────────────────
+    else if (cmd === "miracles") {
+      const key = interaction.options.getString("miracle") || MIRACLE_KEYS[0];
+      if (!MIRACLES[key])
+        return interaction.editReply({ embeds: [errEmbed("That miracle was not found.")] });
+      await interaction.editReply({
+        embeds: [miracleEmbed(key)],
+        components: [miracleMenu(key), miracleBtns(key)],
+      });
+    }
   }
 
   // ── SELECT MENUS ──────────────────────────────────────────
@@ -948,13 +1166,25 @@ client.on("interactionCreate", async interaction => {
         await interaction.editReply({ embeds: [errEmbed("Could not load that category.")] });
       }
     }
+
+    // Miracle selector menu
+    else if (cid === "sm_miracle") {
+      await interaction.deferUpdate();
+      const key = interaction.values[0];
+      if (!MIRACLES[key])
+        return interaction.editReply({ embeds: [errEmbed("That miracle was not found.")] });
+      await interaction.editReply({
+        embeds: [miracleEmbed(key)],
+        components: [miracleMenu(key), miracleBtns(key)],
+      });
+    }
   }
 
   // ── BUTTONS ───────────────────────────────────────────────
   else if (interaction.isButton()) {
     const id = interaction.customId;
 
-    // hadith nav  hp|colKey|num  hn|..  hr|..  ha|..
+    // hadith nav
     if (/^h[pnra]\|/.test(id)) {
       await interaction.deferUpdate();
       const [code, colKey, numStr] = id.split("|");
@@ -1000,7 +1230,6 @@ client.on("interactionCreate", async interaction => {
       await interaction.deferUpdate();
       const code  = id.substring(0, 2);
       const parts = id.split("_");
-
       if (code === "sa") {
         const surahN = parseInt(parts[1]);
         const trKey  = parts.slice(2).join("_") || DEFAULT_TR;
@@ -1012,7 +1241,6 @@ client.on("interactionCreate", async interaction => {
         }
         return;
       }
-
       const surahN = code === "sr"
         ? Math.floor(Math.random() * 114) + 1
         : parseInt(parts[1]);
@@ -1076,11 +1304,51 @@ client.on("interactionCreate", async interaction => {
         await interaction.editReply({ embeds: [errEmbed("Could not load that name.")] });
       }
     }
+
+    // Miracle prev / next buttons  mp_ / mn_
+    else if (id.startsWith("mp_") || id.startsWith("mn_")) {
+      await interaction.deferUpdate();
+      const key = id.slice(3);
+      if (!MIRACLES[key])
+        return interaction.editReply({ embeds: [errEmbed("That miracle was not found.")] });
+      await interaction.editReply({
+        embeds: [miracleEmbed(key)],
+        components: [miracleMenu(key), miracleBtns(key)],
+      });
+    }
+
+    // Miracle "View Ayah" button  mv_surah_ayah
+    else if (id.startsWith("mv_")) {
+      await interaction.deferUpdate();
+      const [,s,a] = id.split("_");
+      try {
+        const v = await fetchAyah(parseInt(s), parseInt(a), DEFAULT_TR);
+        await interaction.editReply({
+          embeds: [ayahEmbed(v, DEFAULT_TR)],
+          components: [tranMenu(DEFAULT_TR, parseInt(s), parseInt(a), v.totalAyahs), ayahBtns(parseInt(s), parseInt(a), v.totalAyahs, DEFAULT_TR)],
+        });
+      } catch {
+        await interaction.editReply({ embeds: [errEmbed(`Could not load ${s}:${a}.`)] });
+      }
+    }
+
+    // Miracle "Tafsir" button  mt_surah_ayah
+    else if (id.startsWith("mt_")) {
+      await interaction.deferUpdate();
+      const [,s,a] = id.split("_");
+      await interaction.editReply({
+        embeds: [new EmbedBuilder().setColor(0x4A148C).setTitle("📚  Choose a Tafsir")
+          .setDescription(`Select commentary for **${s}:${a}**\n\n` +
+            Object.entries(TAFSIRS).map(([,v]) => `${v.flag} **${v.name}** — *${v.scholar}* (${v.lang})`).join("\n"))
+          .setFooter({ text: "تفسير القرآن الكريم — UmmahAPI" })],
+        components: [tafsirMenu(parseInt(s), parseInt(a))],
+      });
+    }
   }
 });
 
 // ═══════════════════════════════════════════════════════════════
-//  AUTO VERSE DETECTION  (BibleBot-style)
+//  AUTO VERSE DETECTION
 // ═══════════════════════════════════════════════════════════════
 
 const MAX_AUTO_VERSES = 3;
@@ -1126,63 +1394,45 @@ const AUTO_VERSE_COOLDOWN_MS = 5000;
 
 client.on("messageCreate", async message => {
   if (message.author.bot || message.webhookId) return;
-
   const content = message.content;
   if (!content || content.length < 3) return;
-
   const now = Date.now();
   if (now - (autoVerseCooldown.get(message.channelId) || 0) < AUTO_VERSE_COOLDOWN_MS) return;
-
   const matches = [];
   let match;
   VERSE_PATTERN.lastIndex = 0;
-
   while ((match = VERSE_PATTERN.exec(content)) !== null && matches.length < MAX_AUTO_VERSES) {
     const rawName  = match[1]?.trim() || null;
     const numPart  = parseInt(match[2]);
     const ayahPart = parseInt(match[3]);
-
     let surahN = null;
-
     if (rawName) {
       surahN = resolveSurah(rawName) ?? (numPart >= 1 && numPart <= 114 ? numPart : null);
     } else {
       surahN = numPart >= 1 && numPart <= 114 ? numPart : null;
     }
-
     if (!surahN || !isValidAyah(surahN, ayahPart)) continue;
-
     const key = `${surahN}:${ayahPart}`;
     if (matches.some(m => m.key === key)) continue;
     matches.push({ surahN, ayahN: ayahPart, key });
   }
-
   if (!matches.length) return;
-
   autoVerseCooldown.set(message.channelId, now);
-
   const results = await Promise.allSettled(
     matches.map(m => fetchAyah(m.surahN, m.ayahN, DEFAULT_TR))
   );
-
   const embeds = results
     .filter(r => r.status === "fulfilled")
     .map(r => autoAyahEmbed(r.value, DEFAULT_TR));
-
   if (!embeds.length) return;
-
   try {
     const reply = await message.reply({
       embeds,
       allowedMentions: { repliedUser: false },
     });
-
-    // ♻️ react so author can delete the bot reply
     await reply.react("♻️").catch(() => {});
-
     const filter = (reaction, user) =>
       reaction.emoji.name === "♻️" && user.id === message.author.id;
-
     reply
       .awaitReactions({ filter, max: 1, time: 60_000, errors: [] })
       .then(collected => {
