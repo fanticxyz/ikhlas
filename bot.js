@@ -41,19 +41,22 @@ const SUNNAH_KEY = process.env.SUNNAH_API_KEY || "cKKr53NtU7VQ1FfvKcjMVf7ANxz31i
 // ─────────────────────────────────────────────────────
 //  COLLECTIONS
 // ─────────────────────────────────────────────────────
+// Shared icon — the geometric Islamic star used by sunnah.com for all collections
+const HADITH_ICON = "https://sunnah.com/images/hadith_icon2_huge.png";
+
 const COLLECTIONS = {
-  bukhari:   { name: "Sahih al-Bukhari",    arabic: "صحيح البخاري",       color: 0x1B5E20, emoji: "📗", total: 7563, collectionId: "bukhari"   },
-  muslim:    { name: "Sahih Muslim",         arabic: "صحيح مسلم",          color: 0x0D47A1, emoji: "📘", total: 7470, collectionId: "muslim"    },
-  abudawud:  { name: "Sunan Abu Dawud",      arabic: "سنن أبي داود",       color: 0x4A148C, emoji: "📙", total: 5274, collectionId: "abudawud"  },
-  tirmidhi:  { name: "Jami at-Tirmidhi",     arabic: "جامع الترمذي",       color: 0x880E4F, emoji: "📕", total: 3956, collectionId: "tirmidhi"  },
-  ibnmajah:  { name: "Sunan Ibn Majah",      arabic: "سنن ابن ماجه",       color: 0x004D40, emoji: "📒", total: 4341, collectionId: "ibnmajah"  },
-  nasai:     { name: "Sunan an-Nasa'i",      arabic: "سنن النسائي",        color: 0x37474F, emoji: "📓", total: 5761, collectionId: "nasai"     },
-  malik:     { name: "Muwatta Malik",        arabic: "موطأ مالك",          color: 0x6D4C41, emoji: "📔", total: 1858, collectionId: "malik"     },
-  nawawi40:  { name: "40 Hadith Nawawi",     arabic: "الأربعون النووية",   color: 0x00695C, emoji: "🌿", total: 42,   collectionId: "nawawi40"  },
-  qudsi40:   { name: "40 Hadith Qudsi",      arabic: "الأربعون القدسية",   color: 0x1A237E, emoji: "✨", total: 40,   collectionId: "qudsi40"   },
-  riyadussalihin: { name: "Riyad as-Salihin", arabic: "رياض الصالحين",    color: 0x2E7D32, emoji: "🌸", total: 1896, collectionId: "riyadussalihin" },
-  mishkat:   { name: "Mishkat al-Masabih",   arabic: "مشكاة المصابيح",    color: 0x4E342E, emoji: "📜", total: 6294, collectionId: "mishkat"   },
-  adab:      { name: "Al-Adab Al-Mufrad",    arabic: "الأدب المفرد",       color: 0x01579B, emoji: "🌺", total: 1322, collectionId: "adab"      },
+  bukhari:        { name: "Sahih al-Bukhari",    arabic: "صحيح البخاري",       color: 0x1B5E20, emoji: "📗", total: 7563, collectionId: "bukhari",        icon: HADITH_ICON },
+  muslim:         { name: "Sahih Muslim",         arabic: "صحيح مسلم",          color: 0x0D47A1, emoji: "📘", total: 7470, collectionId: "muslim",         icon: HADITH_ICON },
+  abudawud:       { name: "Sunan Abu Dawud",      arabic: "سنن أبي داود",       color: 0x4A148C, emoji: "📙", total: 5274, collectionId: "abudawud",       icon: HADITH_ICON },
+  tirmidhi:       { name: "Jami at-Tirmidhi",     arabic: "جامع الترمذي",       color: 0x880E4F, emoji: "📕", total: 3956, collectionId: "tirmidhi",       icon: HADITH_ICON },
+  ibnmajah:       { name: "Sunan Ibn Majah",      arabic: "سنن ابن ماجه",       color: 0x004D40, emoji: "📒", total: 4341, collectionId: "ibnmajah",       icon: HADITH_ICON },
+  nasai:          { name: "Sunan an-Nasa'i",      arabic: "سنن النسائي",        color: 0x37474F, emoji: "📓", total: 5761, collectionId: "nasai",          icon: HADITH_ICON },
+  malik:          { name: "Muwatta Malik",        arabic: "موطأ مالك",          color: 0x6D4C41, emoji: "📔", total: 1858, collectionId: "malik",          icon: HADITH_ICON },
+  nawawi40:       { name: "40 Hadith Nawawi",     arabic: "الأربعون النووية",   color: 0x00695C, emoji: "🌿", total: 42,   collectionId: "nawawi40",       icon: HADITH_ICON },
+  qudsi40:        { name: "40 Hadith Qudsi",      arabic: "الأربعون القدسية",   color: 0x1A237E, emoji: "✨", total: 40,   collectionId: "qudsi40",        icon: HADITH_ICON },
+  riyadussalihin: { name: "Riyad as-Salihin",     arabic: "رياض الصالحين",      color: 0x2E7D32, emoji: "🌸", total: 1896, collectionId: "riyadussalihin", icon: HADITH_ICON },
+  mishkat:        { name: "Mishkat al-Masabih",   arabic: "مشكاة المصابيح",    color: 0x4E342E, emoji: "📜", total: 6294, collectionId: "mishkat",        icon: HADITH_ICON },
+  adab:           { name: "Al-Adab Al-Mufrad",    arabic: "الأدب المفرد",       color: 0x01579B, emoji: "🌺", total: 1322, collectionId: "adab",           icon: HADITH_ICON },
 };
 const COL_KEYS = Object.keys(COLLECTIONS);
 
@@ -634,7 +637,8 @@ function hadithEmbed(h, showArabic = false) {
   const englishText = truncate(h.english || "Translation unavailable.", 3800);
   const embed = new EmbedBuilder()
     .setColor(g?.color ?? col.color)
-    .setAuthor({ name: `${col.emoji}  ${col.name}  •  Hadith #${h.number}` })
+    .setAuthor({ name: `${col.name}  •  Hadith #${h.number}`, iconURL: col.icon })
+    .setThumbnail(col.icon)
     .setDescription(`*"${englishText}"*`)
     .setFooter({ text: "sunnah.com API • لا علم إلا ما علَّم الله" })
     .setTimestamp();
